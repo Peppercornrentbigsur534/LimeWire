@@ -35,4 +35,17 @@ First public release as **LimeWire 1.0 Studio Edition** — a complete all-in-on
 - Noise reduction, lyrics lookup, Serato crate export, FL Studio integration
 - 12 themes: LiveWire (default), Classic Light, Classic Dark, Modern Dark, Synthwave, Dracula, Catppuccin, Tokyo Night, Spotify, LimeWire Classic, Nord, Gruvbox
 - Gradient logo bar, icon toolbar, command palette (Ctrl+K), toast notifications
+- Drag-and-drop file loading across all tabs (tkinterdnd2)
+- Global search in command palette (history + discovery library)
+- Editor waveform zoom/scroll (up to 32x) with minimap overview
+- Effect chain presets (save/load as JSON)
+- Dark title bar via Windows DWM API
+- Recent files menu (File > Recent Files)
+- Auto-save/restore session state between launches
+- Batch stem separation (queue multiple files)
+- Export library analysis to CSV
+- Send to Player (auto-queue from Discovery)
+- Media key shortcuts (Ctrl+Arrow for next/prev/volume)
+- Now Playing toast notification on track change
+- Snap to zero-crossing for clean Editor cuts
 - Anonymized default paths, atomic JSON config writes, thread-safe operations

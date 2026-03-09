@@ -1,13 +1,27 @@
 # Roadmap
 
+## v1.0.1 — Shipped!
+- [x] Drag-and-drop file loading across all tabs
+- [x] Global search across downloads, history, and library
+- [x] Playlist auto-queue from Discovery matches
+- [x] Waveform zoom and scroll in Editor
+- [x] Batch stem separation
+- [x] Export presets (save/load effect chains)
+- [x] Dark title bar (Windows DWM API)
+- [x] Recent files menu
+- [x] Auto-save/restore session state
+- [x] Media key shortcuts
+- [x] Editor minimap with viewport indicator
+- [x] Snap to zero-crossing for clean cuts
+- [x] Now Playing toast notifications
+- [x] Export library analysis to CSV
+
 ## v1.1 — Quality of Life
-- [ ] Drag-and-drop file loading across all tabs
-- [ ] Global search across downloads, history, and library
-- [ ] Playlist auto-queue from Discovery matches
-- [ ] Waveform zoom and scroll in Editor
-- [ ] Batch stem separation
-- [ ] Export presets (save/load effect chains)
 - [ ] Improved keyboard navigation across all tabs
+- [ ] Undo/redo in Effects chain
+- [ ] Waveform color coding by frequency in Editor
+- [ ] Batch rename downloaded files
+- [ ] Auto-tag metadata from analysis results
 
 ## v1.2 — Streaming & Social
 - [ ] SoundCloud and Bandcamp integration
@@ -31,4 +45,4 @@
 
 ---
 
-Have an idea? [Open a feature request](https://github.com/yourusername/LimeWire/issues/new?template=feature_request.md)
+Have an idea? [Open a feature request](https://github.com/Ccwilliams314/LimeWire/issues/new?template=feature_request.md)

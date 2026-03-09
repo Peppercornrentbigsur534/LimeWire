@@ -176,23 +176,36 @@ pip install yt-dlp pillow requests mutagen pyglet librosa soundfile pyloudnorm m
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+K` | Command Palette (fuzzy search all pages & actions) |
+| `Ctrl+K` | Command Palette (fuzzy search pages, history, library) |
 | `Ctrl+D` | Download / Grab URL |
 | `Ctrl+O` | Open downloads folder |
 | `Space` | Play / Pause |
+| `Ctrl+Right` | Next track |
+| `Ctrl+Left` | Previous track |
+| `Ctrl+Up/Down` | Volume up/down |
+| `Shift+Escape` | Quick close |
 | `Ctrl+?` | Show shortcuts dialog |
 
 ---
 
 ## Themes
 
-Three built-in themes with **live switching** (no restart required):
+12 built-in themes with **live switching** (no restart required):
 
-| Theme | Description |
-|-------|-------------|
-| **Classic Light** | Warm neutrals (#F8F9FA), soft green accents. Daytime use. |
-| **Classic Dark** | Rich dark (#1A1D21), green accents. Default. Studio environments. |
-| **Modern Dark** | GitHub-inspired (#0D1117), bright green (#3FB950). High contrast. |
+| Theme | Style |
+|-------|-------|
+| **LiveWire** (default) | Electric cyan/blue, dark navy background |
+| **Classic Light** | Warm neutrals, soft green accents |
+| **Classic Dark** | Rich dark, green accents |
+| **Modern Dark** | GitHub-inspired, high contrast |
+| **Synthwave** | Neon pink/purple, retro aesthetic |
+| **Dracula** | Purple/cyan/green, popular dev theme |
+| **Catppuccin** | Pastel tones, easy on the eyes |
+| **Tokyo Night** | Blue-tinted dark, calm palette |
+| **Spotify** | Green accents on dark background |
+| **LimeWire Classic** | Original lime green nostalgia |
+| **Nord** | Arctic blue-grey, muted tones |
+| **Gruvbox** | Warm retro brown/orange/green |
 
 Switch via: **Tools > Cycle Theme** or **Ctrl+K > type "theme"**
 
@@ -200,12 +213,12 @@ Switch via: **Tools > Cycle Theme** or **Ctrl+K > type "theme"**
 
 ## Architecture
 
-Single-file application (`~5,200 lines`):
+Single-file application (`~5,500 lines`):
 
 ```
 LimeWire.py
 ├── Imports & dependency detection (HAS_LIBROSA, HAS_DEMUCS, etc.)
-├── Theme system (3 palettes, semantic tokens, apply_theme())
+├── Theme system (12 palettes, semantic tokens, apply_theme())
 ├── Font system (Segoe UI, Cascadia Code, heading hierarchy)
 ├── Utility functions (audio loading, waveform, spectrogram, pitch/time)
 ├── Modern widget system (ModernBtn, ToolTip, ToastManager, CommandPalette)
@@ -223,6 +236,8 @@ LimeWire.py
 | `~/.limewire_settings.json` | User preferences (theme, paths) |
 | `~/.limewire_queue.json` | Batch download queue |
 | `~/.limewire_analysis_cache.json` | BPM/key analysis cache |
+| `~/.limewire_session.json` | Session state (loaded files, active tab) |
+| `~/.limewire_recent_files.json` | Recently opened files |
 
 ---
 
@@ -237,19 +252,29 @@ LimeWire.py
 - **Spacing constants** system for consistent layout
 
 ### UX Infrastructure
-- **Command Palette** (`Ctrl+K`) &mdash; fuzzy search all pages and actions
+- **Command Palette** (`Ctrl+K`) &mdash; fuzzy search pages, history, and library
 - **Tooltips** on toolbar buttons
 - **Toast notification queue** &mdash; stacks up to 4, severity colors
 - **Shortcut Registry** with `Ctrl+?` help dialog
-- **Live theme switching** &mdash; no restart required
+- **Live theme switching** &mdash; 12 themes, no restart required
+- **Dark title bar** &mdash; Windows DWM API matches theme
+- **Drag-and-drop** &mdash; drop audio files onto any tab
+- **Recent files menu** &mdash; File > Recent Files (persisted)
+- **Session restore** &mdash; remembers loaded files and active tab between launches
+- **Media keys** &mdash; Ctrl+Arrow for next/prev/volume
 
 ### Studio Features
 - **Stem Remixer** &mdash; mix Demucs stems with per-stem volume/pan/mute/solo
+- **Batch stem separation** &mdash; queue multiple files for Demucs
 - **Batch Processor** &mdash; normalize, convert, fade, trim silence, strip metadata
+- **Effects presets** &mdash; save/load effect chains as JSON
 - **Loudness Targeting** &mdash; platform presets with 2-pass ffmpeg loudnorm
-- **Smart Playlists** &mdash; energy-level filtering + 4 sort modes
+- **Smart Playlists** &mdash; energy-level filtering + 4 sort modes + send to Player
+- **CSV export** &mdash; export library analysis from Discovery
+- **Editor zoom** &mdash; waveform zoom up to 32x with minimap overview
+- **Snap to zero-crossing** &mdash; clean cut edges in Editor
 - **Player crossfade** control (0-5000ms)
-- **Up Next** track indicator
+- **Up Next** track indicator + Now Playing toast
 
 ---
 
