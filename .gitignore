@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# App generated
+.limewire_*.json
+.ytdl_*.json
+
+# Torch/model cache
+*.pt
+*.pth
+*.bin
+torch_cache/
+
+# Temp/build artifacts
+*.spec
+*.log

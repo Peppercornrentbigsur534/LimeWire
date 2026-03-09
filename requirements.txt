@@ -1,0 +1,40 @@
+# LimeWire 1.0 Studio Edition — Python Dependencies
+# ══════════════════════════════════════════════════
+# Install all:  pip install -r requirements.txt
+# Also needed:  winget install ffmpeg  (or download from ffmpeg.org)
+
+# ── Core (required) ──────────────────────────────
+yt-dlp
+Pillow
+requests
+mutagen
+pyglet
+
+# ── Audio Analysis & Identification ──────────────
+librosa
+soundfile
+pyloudnorm
+musicbrainzngs
+pyacoustid
+# shazamio          # Requires Python <=3.12 and Rust compiler; pure-HTTP fallback built in
+
+# ── Stem Separation ──────────────────────────────
+demucs
+
+# ── Audio Editing & Recording ────────────────────
+pydub
+sounddevice
+pyrubberband
+openai-whisper
+
+# ── Effects & Lyrics ─────────────────────────────
+noisereduce
+pedalboard
+lyricsgenius
+
+# ── DJ Integration (optional) ────────────────────
+# pyflp             # FL Studio project files
+# serato-tools      # Serato crate export
+
+# ── UI Extras (optional) ─────────────────────────
+# tkinterdnd2       # Drag-and-drop file support
