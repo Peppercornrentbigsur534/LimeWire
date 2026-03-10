@@ -1,5 +1,37 @@
 # Changelog
 
+## v2.0.2 — Settings & Security Hardening (2026-03-09)
+
+### New: Settings Tab (20th Tab)
+- Dedicated Settings page with theme selector dropdown (13 built-in + community themes)
+- Download folder configuration with browse dialog
+- Proxy and rate limit settings
+- Clipboard watch toggle
+- Discord Rich Presence toggle
+- About section with version info
+
+### Security Hardening
+- **Theme sandboxing**: `apply_theme()` now uses allowlist — community themes can only set known color keys, preventing globals overwrite
+- **Freesound filename sanitization**: Sample downloads now use `sanitize_filename()` instead of ad-hoc `.replace()`
+- **Remixer preview temp file**: Replaced predictable `_remix_preview.wav` with `tempfile.mkstemp()` + cleanup
+- **Effect preset loading**: Fixed missing default argument in `load_json()` call that would crash preset loading
+- **Crash log privacy**: Startup errors now write full traceback to `~/.limewire_crash.log` instead of displaying in message box
+
+### UI Changes
+- Toolbar icons reverted to emoji style (from monochrome Unicode symbols)
+- Menu backgrounds properly themed in dark modes (explicit fg/activebackground)
+- Theme dropdown moved from toolbar to Settings tab for cleaner toolbar layout
+- Window width widened from 820px to 960px to accommodate 20 toolbar buttons
+
+### Screenshots
+- All 20 screenshots automated via `--screenshots` CLI flag
+- Screenshots anonymized (personal paths replaced, LiveWire theme forced)
+
+### Tab Count
+- 20 tabs (added Settings)
+
+---
+
 ## v2.0.1 — Visual Facelift (2026-03-09)
 
 ### Typography

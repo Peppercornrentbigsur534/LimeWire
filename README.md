@@ -4,12 +4,12 @@
   <br>
 </h1>
 
-<h3 align="center">v2.0.1 Studio Edition &mdash; The Modern Music Utility for Everything</h3>
+<h3 align="center">v2.0.2 Studio Edition &mdash; The Modern Music Utility for Everything</h3>
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=flat-square&logo=windows" alt="Cross-Platform">
-  <img src="https://img.shields.io/badge/tabs-19-2ECC71?style=flat-square" alt="19 Tabs">
+  <img src="https://img.shields.io/badge/tabs-20-2ECC71?style=flat-square" alt="20 Tabs">
   <img src="https://img.shields.io/badge/themes-13-purple?style=flat-square" alt="13 Themes">
   <img src="https://img.shields.io/badge/languages-6-orange?style=flat-square" alt="6 Languages">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
@@ -27,7 +27,7 @@
 
 ## What is LimeWire?
 
-LimeWire is a **19-tab all-in-one audio production studio** built with Python and tkinter. It started as a simple YouTube downloader and evolved into a comprehensive music utility covering the entire audio workflow &mdash; from downloading and converting, to analysis, editing, stem separation, remixing, and batch processing.
+LimeWire is a **20-tab all-in-one audio production studio** built with Python and tkinter. It started as a simple YouTube downloader and evolved into a comprehensive music utility covering the entire audio workflow &mdash; from downloading and converting, to analysis, editing, stem separation, remixing, and batch processing.
 
 ### Key Highlights
 
@@ -54,14 +54,15 @@ LimeWire is a **19-tab all-in-one audio production studio** built with Python an
 - **6 languages** &mdash; English, Spanish, French, German, Japanese, Portuguese
 - **13 themes** &mdash; including High Contrast for accessibility + community theme loading
 - **Modern UI** with smooth animated buttons, smoothstep gradient header, command palette, live themes
-- **Visual polish** &mdash; themed scrollbars, monochrome toolbar icons, card elevation, smooth hover transitions
+- **Settings tab** &mdash; theme selector, download folder, proxy, rate limit, clipboard watch, Discord RPC
+- **Visual polish** &mdash; themed scrollbars, emoji toolbar icons, card elevation, smooth hover transitions
 
 ---
 
 ## Screenshots
 
 <details>
-<summary><strong>Click to expand all 19 tabs</strong></summary>
+<summary><strong>Click to expand all 20 tabs</strong></summary>
 
 | Tab | Screenshot |
 |-----|-----------|
@@ -84,6 +85,7 @@ LimeWire is a **19-tab all-in-one audio production studio** built with Python an
 | **Scheduler** | <img src="screenshots/17_schedule.png" width="600"> |
 | **History** | <img src="screenshots/18_history.png" width="600"> |
 | **Cover Art** | <img src="screenshots/19_coverart.png" width="600"> |
+| **Settings** | <img src="screenshots/20_settings.png" width="600"> |
 
 </details>
 
@@ -163,6 +165,7 @@ pip install yt-dlp pillow requests mutagen pyglet librosa soundfile pyloudnorm m
 | **History** | Complete download log with search, replay, and management |
 | **Scheduler** | Schedule downloads for specific times, background polling |
 | **Cover Art** | View, add, fetch (iTunes/MusicBrainz), batch-apply album artwork |
+| **Settings** | Theme selector, download folder, proxy, rate limit, clipboard watch, Discord RPC |
 
 ### Playback & Analysis
 
@@ -225,9 +228,9 @@ pip install yt-dlp pillow requests mutagen pyglet librosa soundfile pyloudnorm m
 | **Gruvbox** | Warm retro brown/orange/green |
 | **High Contrast** | Maximum contrast for accessibility |
 
-Each theme includes 37 semantic color tokens (BG, TEXT, LIME, SUCCESS, WARNING, ERROR, DIVIDER, FOCUS_RING, etc.) for consistent styling across all 19 tabs.
+Each theme includes 37 semantic color tokens (BG, TEXT, LIME, SUCCESS, WARNING, ERROR, DIVIDER, FOCUS_RING, etc.) for consistent styling across all 20 tabs.
 
-Switch via: **Tools > Cycle Theme** or **Ctrl+K > type "theme"**
+Switch via: **Settings tab**, **Tools > Cycle Theme**, or **Ctrl+K > type "theme"**
 
 Load community themes via: **Tools > Load Community Theme** (JSON format)
 
@@ -235,21 +238,21 @@ Load community themes via: **Tools > Load Community Theme** (JSON format)
 
 ## Architecture
 
-Single-file application (`~7,000 lines`):
+Single-file application (`~7,300 lines`):
 
 ```
 LimeWire.py
 ├── Imports & dependency detection (HAS_LIBROSA, HAS_DEMUCS, etc.)
 ├── Platform detection (IS_WINDOWS, IS_MACOS, IS_LINUX)
-├── Theme system (13 palettes, 37 semantic tokens, apply_theme())
+├── Theme system (13 palettes, 37 semantic tokens, apply_theme() with allowlist)
 ├── Localization (6 languages, _t() i18n system)
 ├── Plugin system (PluginBase, PluginManager)
 ├── Font system (Segoe UI, Cascadia Code, 14-level heading hierarchy)
 ├── Utility functions (audio loading, waveform, spectrogram, pitch/time)
 ├── Modern widget system (ModernBtn with animated transitions, ToolTip, ToastManager, CommandPalette)
-├── 19 Page classes (all extend ScrollFrame)
+├── 20 Page classes (all extend ScrollFrame, including SettingsPage)
 ├── App class (tk.Tk) — window, menubar, logo bar, toolbar, notebook, statusbar
-└── Launch block
+└── Launch block (with --screenshots CLI for automated screenshot capture)
 ```
 
 ### Data Files
@@ -271,7 +274,7 @@ LimeWire.py
 ### Modern UI
 - Canvas-based **rounded buttons** with smooth 3-step hover transitions and press animations
 - **Smoothstep gradient logo bar** with lightning bolt icon, drop shadow title, outlined version badge
-- **Monochrome symbol toolbar** (Segoe UI Symbol) with active tab indicator
+- **Emoji icon toolbar** with active tab indicator and settings gear
 - **Segoe UI** typography with 14-level hierarchy (8pt caption to 26pt heading)
 - **Themed scrollbars** (10px ttk) matching each theme's palette
 - Professional **color palettes** with 37 semantic tokens (success/warning/error/divider/focus)
@@ -322,16 +325,18 @@ LimeWire.py
 
 ```
 LimeWire/
-├── LimeWire.py                              # Main application (~7,000 lines)
+├── LimeWire.py                              # Main application (~7,300 lines)
 ├── README.md                                # This file
 ├── CHANGELOG.md                             # Version history
 ├── ROADMAP.md                               # Feature roadmap
+├── SECURITY.md                              # Security policy & vulnerability report
 ├── LimeWire_v1.0_Operation_Manual.pdf       # 43-page operation manual
-└── screenshots/                             # App screenshots (19 tabs)
+└── screenshots/                             # App screenshots (20 tabs)
     ├── 01_search.png
     ├── 02_download.png
     ├── ...
-    └── 19_coverart.png
+    ├── 19_coverart.png
+    └── 20_settings.png
 ```
 
 ---

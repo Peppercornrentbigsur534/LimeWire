@@ -69,6 +69,17 @@
 - [x] Thinner progress bars (8px) with new Thin variant (4px)
 - [x] Treeview rows taller (28px) with improved heading styling
 
+## v2.0.2 — Settings & Security Hardening — Shipped!
+- [x] Dedicated Settings tab (20th tab) with theme selector, download folder, proxy, rate limit
+- [x] Theme sandbox: `apply_theme()` restricted to known color keys only
+- [x] Freesound sample filename sanitization via `sanitize_filename()`
+- [x] Remixer temp file hardened with `tempfile.mkstemp()`
+- [x] Effect preset `load_json()` bug fix (missing default argument)
+- [x] Crash traceback written to log file instead of displayed to user
+- [x] Toolbar icons reverted to emoji, menu backgrounds properly themed
+- [x] Automated screenshot capture with anonymization (`--screenshots` CLI)
+- [x] All 20 screenshots updated at 960x960
+
 ## Future Ideas
 - [ ] Real-time collaborative mixing via WebSocket
 - [ ] AI-powered auto-mixing suggestions

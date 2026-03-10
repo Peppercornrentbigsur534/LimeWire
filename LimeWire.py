@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LimeWire v2.0.1 — Studio Edition
+LimeWire v2.0.2 — Studio Edition
 The modern music utility for everything. 19-tab cross-platform audio production studio.
 Features: Download, Batch DL, Playlist, Convert, Player (crossfade/EQ),
           Stem Separation (Demucs), Audio Analysis (BPM/Key/LUFS),
@@ -407,7 +407,9 @@ def apply_theme(mode="livewire"):
     if isinstance(mode,bool): mode="dark" if mode else "light"  # backward compat
     t=THEMES.get(mode,THEME_LIVEWIRE)
     g=globals()
-    for k,v in t.items(): g[k]=v
+    _THEME_KEYS=frozenset(THEME_LIVEWIRE.keys())  # only allow known color keys
+    for k,v in t.items():
+        if k in _THEME_KEYS: g[k]=v
     # Backward-compat defaults for community themes missing new keys
     if "BTN_PRESSED" not in t: g["BTN_PRESSED"]=_lerp_color(g["BTN_HOVER"],"#000000",0.3)
     if "CARD_SHADOW" not in t: g["CARD_SHADOW"]=g["BG_DARK"]
@@ -2008,7 +2010,7 @@ class CommandPalette(tk.Toplevel):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LimeWire 2.0.1 Studio Edition"); self.minsize(760,700)
+        self.title("LimeWire 2.0.2 Studio Edition"); self.minsize(760,700)
         # Fit window to screen
         sw,sh=self.winfo_screenwidth(),self.winfo_screenheight()
         w,h=min(960,sw-40),min(960,sh-80)
@@ -2352,7 +2354,7 @@ class App(tk.Tk):
         if HAS_DEMUCS: caps.append("Demucs Stems")
         cap_str = ", ".join(caps) if caps else "None (install optional deps)"
         hm.add_command(label="About",command=lambda:messagebox.showinfo("About",
-            f"LimeWire v2.0.1 Studio Edition\n\n"
+            f"LimeWire v2.0.2 Studio Edition\n\n"
             f"The modern music utility for everything.\n"
             f"Powered by yt-dlp + Demucs + librosa + pydub\n\n"
             f"19 pages: Search, Batch DL, Playlist, Convert, Player,\n"
@@ -2399,7 +2401,7 @@ class App(tk.Tk):
             _round_rect(bar,bx,by-11,bx+82,by+11,radius=11,
                          fill=_lerp_color(ACCENT_START,"#000000",0.35),
                          outline=_lerp_color(ACCENT_START,"#FFFFFF",0.15),tags="fg")
-            bar.create_text(bx+41,by,text="v2.0.1 Studio",font=("Segoe UI Semibold",8),fill="#FFFFFF",tags="fg")
+            bar.create_text(bx+41,by,text="v2.0.2 Studio",font=("Segoe UI Semibold",8),fill="#FFFFFF",tags="fg")
             sx=w-90; sy=LOGO_H//2
             self._status_x=sx; self._status_y=sy
             bar.create_oval(sx-4,sy-4,sx+4,sy+4,fill=SUCCESS,outline="",tags=("fg","status_dot"))
@@ -2706,7 +2708,7 @@ class App(tk.Tk):
                 resp=requests.get("https://api.github.com/repos/Ccwilliams314/LimeWire/releases/latest",timeout=10)
                 if resp.status_code==200:
                     data=resp.json(); tag=data.get("tag_name","")
-                    current="v2.0.1"
+                    current="v2.0.2"
                     if tag and tag>current:
                         url=data.get("html_url","")
                         self.after(0,lambda:show_toast(self,f"Update available: {tag}\nVisit GitHub to download","warn",8000))
@@ -4869,7 +4871,7 @@ class EffectsPage(ScrollFrame):
         f=filedialog.askopenfilename(filetypes=[("Effect Preset","*.json"),("All","*.*")])
         if not f: return
         try:
-            data=load_json(f)
+            data=load_json(f,{})
             chain=data.get("chain",[]) if isinstance(data,dict) else data
             if not isinstance(chain,list): show_toast(self.app,"Invalid preset file","error"); return
             self._push_undo(); self._chain=chain; self._render_chain()
@@ -5443,7 +5445,7 @@ class SamplesPage(ScrollFrame):
             messagebox.showinfo("LimeWire","No download available for this sample."); return
         out_dir=os.path.join(self.app.output_dir,"Samples")
         os.makedirs(out_dir,exist_ok=True)
-        name=r.get("name","sample").replace("/","_")
+        name=sanitize_filename(r.get("name","sample"))
         out_path=os.path.join(out_dir,f"{name}.mp3")
         self.search_status.config(text=f"Downloading: {name}...",fg=YELLOW)
         def _do():
@@ -6685,10 +6687,15 @@ class RemixerPage(ScrollFrame):
         def _do():
             mixed=self._mix_stems()
             if mixed is None: self.after(0,lambda:self.prog.configure(value=0)); return
-            tmp=os.path.join(self.app.output_dir,"_remix_preview.wav")
-            mixed.export(tmp,format="wav")
-            _audio.load(tmp); _audio.play()
-            self.after(0,lambda:(self.status_lbl.config(text="Playing preview...",fg=LIME_DK),self.prog.configure(value=100)))
+            fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_remix_")
+            os.close(fd)
+            try:
+                mixed.export(tmp,format="wav")
+                _audio.load(tmp); _audio.play()
+                self.after(0,lambda:(self.status_lbl.config(text="Playing preview...",fg=LIME_DK),self.prog.configure(value=100)))
+            finally:
+                try: os.unlink(tmp)
+                except OSError: pass
         threading.Thread(target=_do,daemon=True).start()
 
     def _export(self):
@@ -6959,7 +6966,7 @@ class SettingsPage(ScrollFrame):
                         command=self._toggle_rpc).pack(side="left")
         # ── About ──
         ab=GroupBox(p,"About"); ab.pack(fill="x",padx=10,pady=(0,6))
-        tk.Label(ab,text="LimeWire-DL v8.0 Studio Edition",font=F_BOLD,bg=BG,fg=LIME_DK).pack(anchor="w")
+        tk.Label(ab,text="LimeWire v2.0.2 Studio Edition",font=F_BOLD,bg=BG,fg=LIME_DK).pack(anchor="w")
         tk.Label(ab,text="A modern music toolkit built with Python & tkinter.",font=F_SMALL,bg=BG,fg=TEXT_DIM).pack(anchor="w")
     def _browse_out(self):
         d=filedialog.askdirectory(initialdir=self.app.output_dir)
@@ -7272,5 +7279,9 @@ if __name__=="__main__":
     try: app=App(); app.mainloop()
     except Exception as e:
         import traceback
-        try: messagebox.showerror("LimeWire Error",traceback.format_exc())
-        except Exception: input(f"ERROR: {e}\nPress Enter...")
+        crash_log=os.path.join(os.path.expanduser("~"),".limewire_crash.log")
+        try:
+            with open(crash_log,"w") as f: f.write(traceback.format_exc())
+        except Exception: pass
+        try: messagebox.showerror("LimeWire Error",f"LimeWire encountered an error:\n{str(e)[:200]}\n\nDetails saved to:\n{crash_log}")
+        except Exception: print(f"ERROR: {e}\nCrash log: {crash_log}")
