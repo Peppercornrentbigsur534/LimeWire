@@ -1,5 +1,40 @@
 # Changelog
 
+## v2.0.0 — Cross-Platform & Plugins (2026-03-09)
+
+### v1.2: Keyboard & Navigation
+- **Tab/Shift+Tab focus cycling**: Cycle through interactive widgets on the active page
+- **Enter for primary action**: Press Enter to trigger the main action on any page
+- **Keyboard shortcut customization**: Tools → Customize Shortcuts dialog to rebind any shortcut
+- **Arrow key seeking**: Left/Right arrow keys seek ±5s in Player (Shift+Arrow ±15s)
+
+### v1.3: Streaming & Social
+- **SoundCloud/Bandcamp search**: Type `sc:query` or `bc:query` in Search to find music (also `yt:query`)
+- **Bare text search**: Typing plain text searches YouTube automatically
+- **Analysis image cards**: Export BPM/key/loudness results as shareable PNG cards with album art
+- **Collaborative playlists**: Share JSON and Import JSON buttons in Player for playlist sharing
+- **Discord Rich Presence**: Shows currently playing track in Discord (requires `pypresence`)
+
+### v2.0: Cross-Platform & Plugins
+- **Platform detection**: IS_WINDOWS, IS_MACOS, IS_LINUX constants for platform-specific code
+- **Plugin system**: `PluginBase` class + `PluginManager` loads custom `.py` plugins from `~/.limewire/plugins/`
+- **VST3/AU hosting**: Load VST3 plugins directly into Effects chain via pedalboard
+- **MIDI controller mapping**: MIDI Learn mode in Remixer for mapping CC controls to stem faders
+- **Cloud sync**: Export/import settings, history, and analysis cache to cloud folders (Dropbox/OneDrive/Google Drive)
+- **Auto-update**: Check for new releases via GitHub API (Tools → Check App Update)
+- **Community themes**: Load custom theme JSON files (Tools → Load Community Theme)
+
+### Ongoing Improvements
+- **Performance**: Recursive library scan with ThreadPoolExecutor (parallel BPM/key analysis, 4 workers)
+- **Accessibility**: High Contrast theme (13 themes total) with maximum contrast ratios
+- **Localization**: 6 languages (English, Spanish, French, German, Japanese, Portuguese) via `_t()` i18n system
+- **50,000 file cap** on library scan to prevent OOM
+
+### Theme Count
+- 13 themes (added High Contrast)
+
+---
+
 ## v1.1.0 — Quality of Life (2026-03-09)
 
 ### New: Cover Art Manager (19th Tab)

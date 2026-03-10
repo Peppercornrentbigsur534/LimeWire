@@ -4,13 +4,14 @@
   <br>
 </h1>
 
-<h3 align="center">v1.1 Studio Edition &mdash; The Modern Music Utility for Everything</h3>
+<h3 align="center">v2.0 Studio Edition &mdash; The Modern Music Utility for Everything</h3>
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python">
-  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6?style=flat-square&logo=windows" alt="Windows">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=flat-square&logo=windows" alt="Cross-Platform">
   <img src="https://img.shields.io/badge/tabs-19-2ECC71?style=flat-square" alt="19 Tabs">
-  <img src="https://img.shields.io/badge/modules-40+-orange?style=flat-square" alt="40+ Integrations">
+  <img src="https://img.shields.io/badge/themes-13-purple?style=flat-square" alt="13 Themes">
+  <img src="https://img.shields.io/badge/languages-6-orange?style=flat-square" alt="6 Languages">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
 </p>
 
@@ -40,10 +41,18 @@ LimeWire is a **19-tab all-in-one audio production studio** built with Python an
 - **Batch processor** &mdash; normalize, convert, fade, trim silence across many files
 - **Smart playlists** with energy filtering and harmonic key matching
 - **Cover art manager** &mdash; view, add, fetch (iTunes/MusicBrainz), batch-apply album artwork
-- **Effects undo/redo** &mdash; 30-level undo stack for the effects chain
-- **Frequency waveform** &mdash; Editor bars colored by spectral centroid
-- **Batch file rename** &mdash; pattern-based renaming with metadata tokens
-- **Multi-format tagging** &mdash; write analysis results to MP3, FLAC, OGG, M4A
+- **Plugin system** &mdash; load custom audio processors from `~/.limewire/plugins/`
+- **VST3/AU hosting** &mdash; load VST3 plugins directly in the effects chain
+- **MIDI controller mapping** &mdash; MIDI Learn in Remixer for hardware fader control
+- **SoundCloud/Bandcamp search** &mdash; type `sc:query` or `bc:query` to search
+- **Discord Rich Presence** &mdash; show currently playing track in Discord
+- **Collaborative playlists** &mdash; share and import playlists via JSON
+- **Analysis image cards** &mdash; export BPM/key/loudness as shareable PNG
+- **Cloud sync** &mdash; export/import settings to Dropbox/OneDrive/Google Drive
+- **Auto-update** &mdash; check for new releases from GitHub
+- **Keyboard customization** &mdash; rebind any shortcut, arrow key seeking
+- **6 languages** &mdash; English, Spanish, French, German, Japanese, Portuguese
+- **13 themes** &mdash; including High Contrast for accessibility + community theme loading
 - **Modern UI** with rounded buttons, gradient header, command palette, live themes
 
 ---
