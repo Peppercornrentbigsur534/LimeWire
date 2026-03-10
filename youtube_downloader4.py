@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-LimeWire v2.0.1 — Studio Edition
-The modern music utility for everything. 19-tab cross-platform audio production studio.
+LimeWire v1.1.0 — Studio Edition
+The modern music utility for everything. 18-tab audio production studio.
 Features: Download, Batch DL, Playlist, Convert, Player (crossfade/EQ),
           Stem Separation (Demucs), Audio Analysis (BPM/Key/LUFS),
           Shazam ID, MusicBrainz Tagging, Chromaprint, Scheduler, History,
@@ -18,7 +18,7 @@ Requirements: pip install yt-dlp pillow requests mutagen pyglet
               winget install ffmpeg
 """
 
-import os, sys, json, threading, datetime, time, urllib.request, subprocess, re, webbrowser, asyncio, struct, wave, math, shutil, logging, tempfile
+import os, sys, json, threading, datetime, time, urllib.request, subprocess, re, webbrowser, asyncio, struct, wave, math, shutil, logging
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -112,9 +112,6 @@ try: import pedalboard; HAS_PEDALBOARD = True
 except Exception: HAS_PEDALBOARD = False
 try: import lyricsgenius; HAS_LYRICS = True
 except Exception: HAS_LYRICS = False
-# Discord Rich Presence
-try: from pypresence import Presence as DiscordRPC; HAS_DISCORD_RPC = True
-except Exception: HAS_DISCORD_RPC = False; DiscordRPC = None
 
 # Audio editing / recording / pitch — lazy loaded on first use
 HAS_PYDUB = False; HAS_SOUNDDEVICE = False; HAS_WHISPER = False; HAS_RUBBERBAND = False
@@ -179,18 +176,12 @@ class _AudioPlayer:
     def get_pos(self): return self._player.time if self._player else 0
 _audio = _AudioPlayer()
 
-# ── Platform detection ─────────────────────────────────────────────────────────
-IS_WINDOWS = sys.platform == "win32"
-IS_MACOS = sys.platform == "darwin"
-IS_LINUX = sys.platform.startswith("linux")
-PLATFORM = "windows" if IS_WINDOWS else ("macos" if IS_MACOS else "linux")
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # LIMEWIRE THEME — Light & Dark palettes
 # ═══════════════════════════════════════════════════════════════════════════════
 THEME_LIGHT={
     "BG":"#F0F2F5","BG_DARK":"#E4E6EA","PANEL":"#FFFFFF","WHITE":"#FFFFFF","BLACK":"#1A1A2E",
-    "TEXT":"#1A1A2E","TEXT_DIM":"#4A5568","TEXT_BLUE":"#0A58CA",
+    "TEXT":"#1A1A2E","TEXT_DIM":"#5A6270","TEXT_BLUE":"#0A58CA",
     "LIME":"#27AE60","LIME_DK":"#1E8449","LIME_LT":"#82E0AA",
     "BLUE_HL":"#0D6EFD","RED":"#DC3545","YELLOW":"#E0A800","ORANGE":"#E8590C",
     "TOOLBAR":"#FFFFFF","BORDER_L":"#D0D5DD","BORDER_D":"#BFC5CF","INPUT_BG":"#FFFFFF","TROUGH":"#DEE2E6",
@@ -201,7 +192,6 @@ THEME_LIGHT={
     "SURFACE":"#FFFFFF","SURFACE_2":"#F5F6F8","SURFACE_3":"#E4E6EA",
     "ACCENT_START":"#27AE60","ACCENT_END":"#17A589",
     "CANVAS_BG":"#161B22",
-    "BTN_PRESSED":"#D0D5DD","CARD_SHADOW":"#C8CDD5","DIVIDER":"#E2E6EB","FOCUS_RING":"#0D6EFD",
 }
 THEME_DARK={
     "BG":"#1A1D21","BG_DARK":"#13161A","PANEL":"#22262B","WHITE":"#2A2E33","BLACK":"#0D0F12",
@@ -209,14 +199,13 @@ THEME_DARK={
     "LIME":"#2ECC71","LIME_DK":"#27AE60","LIME_LT":"#56D384",
     "BLUE_HL":"#4A90D9","RED":"#EF4444","YELLOW":"#FBBF24","ORANGE":"#F97316",
     "TOOLBAR":"#1E2227","BORDER_L":"#343A40","BORDER_D":"#13161A","INPUT_BG":"#22262B","TROUGH":"#343A40",
-    "CARD_BG":"#242930","CARD_BORDER":"#343A40","BTN_HOVER":"#2C3035",
+    "CARD_BG":"#22262B","CARD_BORDER":"#343A40","BTN_HOVER":"#2C3035",
     "LIME_HOVER":"#25A35A","ORANGE_HOVER":"#EA6C0E",
     "INPUT_BORDER":"#343A40","INPUT_FOCUS":"#4A90D9","TAB_ACTIVE":"#2ECC71",
     "SUCCESS":"#2ECC71","WARNING":"#FBBF24","ERROR":"#EF4444","INFO":"#22D3EE",
     "SURFACE":"#22262B","SURFACE_2":"#1A1D21","SURFACE_3":"#13161A",
     "ACCENT_START":"#2ECC71","ACCENT_END":"#1ABC9C",
     "CANVAS_BG":"#0D0F12",
-    "BTN_PRESSED":"#1A1D21","CARD_SHADOW":"#0D0F12","DIVIDER":"#2C3035","FOCUS_RING":"#4A90D9",
 }
 THEME_MODERN={
     "BG":"#0D1117","BG_DARK":"#010409","PANEL":"#161B22","WHITE":"#21262D","BLACK":"#010409",
@@ -231,7 +220,6 @@ THEME_MODERN={
     "SURFACE":"#161B22","SURFACE_2":"#0D1117","SURFACE_3":"#010409",
     "ACCENT_START":"#3FB950","ACCENT_END":"#1ABC9C",
     "CANVAS_BG":"#010409",
-    "BTN_PRESSED":"#21262D","CARD_SHADOW":"#010409","DIVIDER":"#262C36","FOCUS_RING":"#1F6FEB",
 }
 THEME_SYNTHWAVE={
     "BG":"#0C0C0C","BG_DARK":"#060606","PANEL":"#1A1A2E","WHITE":"#16213E","BLACK":"#060606",
@@ -246,7 +234,6 @@ THEME_SYNTHWAVE={
     "SURFACE":"#1A1A2E","SURFACE_2":"#0C0C0C","SURFACE_3":"#060606",
     "ACCENT_START":"#FF2975","ACCENT_END":"#8C1EFF",
     "CANVAS_BG":"#060606",
-    "BTN_PRESSED":"#190830","CARD_SHADOW":"#060606","DIVIDER":"#1C1640","FOCUS_RING":"#8C1EFF",
 }
 THEME_DRACULA={
     "BG":"#282A36","BG_DARK":"#21222C","PANEL":"#44475A","WHITE":"#44475A","BLACK":"#191A21",
@@ -261,7 +248,6 @@ THEME_DRACULA={
     "SURFACE":"#44475A","SURFACE_2":"#282A36","SURFACE_3":"#21222C",
     "ACCENT_START":"#FF79C6","ACCENT_END":"#BD93F9",
     "CANVAS_BG":"#191A21",
-    "BTN_PRESSED":"#4A4D62","CARD_SHADOW":"#191A21","DIVIDER":"#383A4A","FOCUS_RING":"#BD93F9",
 }
 THEME_CATPPUCCIN={
     "BG":"#1E1E2E","BG_DARK":"#181825","PANEL":"#313244","WHITE":"#313244","BLACK":"#11111B",
@@ -276,7 +262,6 @@ THEME_CATPPUCCIN={
     "SURFACE":"#313244","SURFACE_2":"#1E1E2E","SURFACE_3":"#181825",
     "ACCENT_START":"#CBA6F7","ACCENT_END":"#F5C2E7",
     "CANVAS_BG":"#11111B",
-    "BTN_PRESSED":"#333548","CARD_SHADOW":"#11111B","DIVIDER":"#383A4F","FOCUS_RING":"#89B4FA",
 }
 THEME_TOKYO={
     "BG":"#1A1B26","BG_DARK":"#16161E","PANEL":"#292E42","WHITE":"#292E42","BLACK":"#0D0E16",
@@ -291,7 +276,6 @@ THEME_TOKYO={
     "SURFACE":"#292E42","SURFACE_2":"#1A1B26","SURFACE_3":"#16161E",
     "ACCENT_START":"#7AA2F7","ACCENT_END":"#BB9AF7",
     "CANVAS_BG":"#0D0E16",
-    "BTN_PRESSED":"#2A3050","CARD_SHADOW":"#0D0E16","DIVIDER":"#2A2F44","FOCUS_RING":"#BB9AF7",
 }
 THEME_SPOTIFY={
     "BG":"#121212","BG_DARK":"#0A0A0A","PANEL":"#212121","WHITE":"#282828","BLACK":"#060606",
@@ -306,11 +290,10 @@ THEME_SPOTIFY={
     "SURFACE":"#212121","SURFACE_2":"#121212","SURFACE_3":"#0A0A0A",
     "ACCENT_START":"#1DB954","ACCENT_END":"#1ED760",
     "CANVAS_BG":"#060606",
-    "BTN_PRESSED":"#242424","CARD_SHADOW":"#060606","DIVIDER":"#282828","FOCUS_RING":"#1DB954",
 }
 THEME_CLASSIC={
     "BG":"#000000","BG_DARK":"#000000","PANEL":"#1A1A1A","WHITE":"#1A1A1A","BLACK":"#000000",
-    "TEXT":"#E0E0E0","TEXT_DIM":"#999999","TEXT_BLUE":"#3CFF3C",
+    "TEXT":"#E0E0E0","TEXT_DIM":"#808080","TEXT_BLUE":"#3CFF3C",
     "LIME":"#1EFF00","LIME_DK":"#18CC00","LIME_LT":"#5AFF3C",
     "BLUE_HL":"#32CD32","RED":"#FF3333","YELLOW":"#FFFF00","ORANGE":"#FF8C00",
     "TOOLBAR":"#0A0A0A","BORDER_L":"#2D2D2D","BORDER_D":"#000000","INPUT_BG":"#1A1A1A","TROUGH":"#2D2D2D",
@@ -321,7 +304,6 @@ THEME_CLASSIC={
     "SURFACE":"#1A1A1A","SURFACE_2":"#0A0A0A","SURFACE_3":"#000000",
     "ACCENT_START":"#1EFF00","ACCENT_END":"#02E102",
     "CANVAS_BG":"#000000",
-    "BTN_PRESSED":"#1A1A1A","CARD_SHADOW":"#000000","DIVIDER":"#222222","FOCUS_RING":"#1EFF00",
 }
 THEME_NORD={
     "BG":"#2E3440","BG_DARK":"#272C36","PANEL":"#3B4252","WHITE":"#3B4252","BLACK":"#242933",
@@ -336,7 +318,6 @@ THEME_NORD={
     "SURFACE":"#3B4252","SURFACE_2":"#2E3440","SURFACE_3":"#272C36",
     "ACCENT_START":"#88C0D0","ACCENT_END":"#5E81AC",
     "CANVAS_BG":"#242933",
-    "BTN_PRESSED":"#353B49","CARD_SHADOW":"#242933","DIVIDER":"#3C4350","FOCUS_RING":"#5E81AC",
 }
 THEME_GRUVBOX={
     "BG":"#282828","BG_DARK":"#1D2021","PANEL":"#3C3836","WHITE":"#3C3836","BLACK":"#1D2021",
@@ -351,7 +332,6 @@ THEME_GRUVBOX={
     "SURFACE":"#3C3836","SURFACE_2":"#282828","SURFACE_3":"#1D2021",
     "ACCENT_START":"#D79921","ACCENT_END":"#D65D0E",
     "CANVAS_BG":"#1D2021",
-    "BTN_PRESSED":"#3A3530","CARD_SHADOW":"#1D2021","DIVIDER":"#3C3732","FOCUS_RING":"#458588",
 }
 THEME_LIVEWIRE={
     "BG":"#080C12","BG_DARK":"#040810","PANEL":"#101820","WHITE":"#142030","BLACK":"#020408",
@@ -359,34 +339,18 @@ THEME_LIVEWIRE={
     "LIME":"#00E5FF","LIME_DK":"#00B8D4","LIME_LT":"#48F7FF",
     "BLUE_HL":"#0066FF","RED":"#FF1744","YELLOW":"#FFD600","ORANGE":"#FFAB00",
     "TOOLBAR":"#0A1018","BORDER_L":"#1A2A38","BORDER_D":"#040810","INPUT_BG":"#101820","TROUGH":"#1A2A38",
-    "CARD_BG":"#121C28","CARD_BORDER":"#1A2A38","BTN_HOVER":"#1A2A38",
+    "CARD_BG":"#101820","CARD_BORDER":"#1A2A38","BTN_HOVER":"#1A2A38",
     "LIME_HOVER":"#00B8D4","ORANGE_HOVER":"#E09600",
     "INPUT_BORDER":"#1A2A38","INPUT_FOCUS":"#00E5FF","TAB_ACTIVE":"#00E5FF",
     "SUCCESS":"#00E676","WARNING":"#FFD600","ERROR":"#FF1744","INFO":"#48F7FF",
     "SURFACE":"#101820","SURFACE_2":"#080C12","SURFACE_3":"#040810",
     "ACCENT_START":"#00E5FF","ACCENT_END":"#0066FF",
     "CANVAS_BG":"#020408",
-    "BTN_PRESSED":"#0A1218","CARD_SHADOW":"#020406","DIVIDER":"#162230","FOCUS_RING":"#00E5FF",
-}
-THEME_HIGHCONTRAST={
-    "BG":"#000000","BG_DARK":"#000000","PANEL":"#0A0A0A","WHITE":"#FFFFFF","BLACK":"#000000",
-    "TEXT":"#FFFFFF","TEXT_DIM":"#E0E0E0","TEXT_BLUE":"#00CCFF",
-    "LIME":"#00FF00","LIME_DK":"#00CC00","LIME_LT":"#66FF66",
-    "BLUE_HL":"#0088FF","RED":"#FF0000","YELLOW":"#FFFF00","ORANGE":"#FF8800",
-    "TOOLBAR":"#111111","BORDER_L":"#FFFFFF","BORDER_D":"#FFFFFF","INPUT_BG":"#111111","TROUGH":"#333333",
-    "CARD_BG":"#111111","CARD_BORDER":"#FFFFFF","BTN_HOVER":"#333333",
-    "LIME_HOVER":"#00AA00","ORANGE_HOVER":"#CC6600",
-    "INPUT_BORDER":"#FFFFFF","INPUT_FOCUS":"#00FF00","TAB_ACTIVE":"#00FF00",
-    "SUCCESS":"#00FF00","WARNING":"#FFFF00","ERROR":"#FF0000","INFO":"#00CCFF",
-    "SURFACE":"#111111","SURFACE_2":"#000000","SURFACE_3":"#000000",
-    "ACCENT_START":"#00FF00","ACCENT_END":"#00CCFF",
-    "CANVAS_BG":"#000000",
-    "BTN_PRESSED":"#222222","CARD_SHADOW":"#000000","DIVIDER":"#444444","FOCUS_RING":"#FFFF00",
 }
 THEMES={"livewire":THEME_LIVEWIRE,"light":THEME_LIGHT,"dark":THEME_DARK,"modern":THEME_MODERN,
         "synthwave":THEME_SYNTHWAVE,"dracula":THEME_DRACULA,"catppuccin":THEME_CATPPUCCIN,
         "tokyo":THEME_TOKYO,"spotify":THEME_SPOTIFY,"classic":THEME_CLASSIC,
-        "nord":THEME_NORD,"gruvbox":THEME_GRUVBOX,"highcontrast":THEME_HIGHCONTRAST}
+        "nord":THEME_NORD,"gruvbox":THEME_GRUVBOX}
 
 # Current theme vars — initialized to LiveWire (default)
 BG="#080C12"; BG_DARK="#040810"; PANEL="#101820"; WHITE="#142030"; BLACK="#020408"
@@ -394,12 +358,11 @@ TEXT="#E0F4FF"; TEXT_DIM="#4A7A90"; TEXT_BLUE="#48F7FF"
 LIME="#00E5FF"; LIME_DK="#00B8D4"; LIME_LT="#48F7FF"
 BLUE_HL="#0066FF"; RED="#FF1744"; YELLOW="#FFD600"; ORANGE="#FFAB00"
 TOOLBAR="#0A1018"; BORDER_L="#1A2A38"; BORDER_D="#040810"; INPUT_BG="#101820"; TROUGH="#1A2A38"
-CARD_BG="#121C28"; CARD_BORDER="#1A2A38"; BTN_HOVER="#1A2A38"
+CARD_BG="#101820"; CARD_BORDER="#1A2A38"; BTN_HOVER="#1A2A38"
 LIME_HOVER="#00B8D4"; ORANGE_HOVER="#E09600"
 INPUT_BORDER="#1A2A38"; INPUT_FOCUS="#00E5FF"; TAB_ACTIVE="#00E5FF"
 SUCCESS="#00E676"; WARNING="#FFD600"; ERROR="#FF1744"; INFO="#48F7FF"
 SURFACE="#101820"; SURFACE_2="#080C12"; SURFACE_3="#040810"
-BTN_PRESSED="#0A1218"; CARD_SHADOW="#020406"; DIVIDER="#162230"; FOCUS_RING="#00E5FF"
 ACCENT_START="#00E5FF"; ACCENT_END="#0066FF"; CANVAS_BG="#020408"
 
 def apply_theme(mode="livewire"):
@@ -408,120 +371,22 @@ def apply_theme(mode="livewire"):
     t=THEMES.get(mode,THEME_LIVEWIRE)
     g=globals()
     for k,v in t.items(): g[k]=v
-    # Backward-compat defaults for community themes missing new keys
-    if "BTN_PRESSED" not in t: g["BTN_PRESSED"]=_lerp_color(g["BTN_HOVER"],"#000000",0.3)
-    if "CARD_SHADOW" not in t: g["CARD_SHADOW"]=g["BG_DARK"]
-    if "DIVIDER" not in t: g["DIVIDER"]=_lerp_color(g["BORDER_L"],g["BG"],0.5)
-    if "FOCUS_RING" not in t: g["FOCUS_RING"]=g["INPUT_FOCUS"]
     # Modern fonts for all themes (Segoe UI everywhere)
-    g["F_TITLE"]=("Segoe UI Semibold",20); g["F_LOGO"]=("Segoe UI Black",22)
-    g["F_BODY"]=("Segoe UI",11); g["F_BOLD"]=("Segoe UI Semibold",11)
-    g["F_SMALL"]=("Segoe UI",9); g["F_BTN"]=("Segoe UI Semibold",10)
-    g["F_MONO"]=("Cascadia Code",10); g["F_TAB"]=("Segoe UI Semibold",8)
-    g["F_STATUS"]=("Segoe UI",9); g["F_HEADER"]=("Segoe UI Semibold",14)
-    g["F_SECTION"]=("Segoe UI Semibold",11)
-    g["F_H1"]=("Segoe UI Bold",26); g["F_H2"]=("Segoe UI Semibold",21)
-    g["F_H3"]=("Segoe UI Semibold",17); g["F_H4"]=("Segoe UI Semibold",14)
-    g["F_CAPTION"]=("Segoe UI",8); g["F_LABEL"]=("Segoe UI Semibold",9)
+    g["F_TITLE"]=("Segoe UI Semibold",18); g["F_LOGO"]=("Segoe UI",20,"bold")
+    g["F_BODY"]=("Segoe UI",10); g["F_BOLD"]=("Segoe UI Semibold",10)
+    g["F_SMALL"]=("Segoe UI",9); g["F_BTN"]=("Segoe UI Semibold",9)
+    g["F_MONO"]=("Cascadia Code",9); g["F_TAB"]=("Segoe UI Semibold",9)
+    g["F_STATUS"]=("Segoe UI",8); g["F_HEADER"]=("Segoe UI Semibold",13)
+    g["F_SECTION"]=("Segoe UI Semibold",10)
+    g["F_H1"]=("Segoe UI Semibold",24); g["F_H2"]=("Segoe UI Semibold",20)
+    g["F_H3"]=("Segoe UI Semibold",16); g["F_H4"]=("Segoe UI Semibold",13)
 
-F_TITLE=("Segoe UI Semibold",20); F_LOGO=("Segoe UI Black",22); F_BODY=("Segoe UI",11)
-F_BOLD=("Segoe UI Semibold",11); F_SMALL=("Segoe UI",9); F_BTN=("Segoe UI Semibold",10)
-F_MONO=("Cascadia Code",10); F_TAB=("Segoe UI Semibold",8); F_STATUS=("Segoe UI",9)
-F_HEADER=("Segoe UI Semibold",14); F_SECTION=("Segoe UI Semibold",11)
-F_H1=("Segoe UI Bold",26); F_H2=("Segoe UI Semibold",21)
-F_H3=("Segoe UI Semibold",17); F_H4=("Segoe UI Semibold",14)
-F_CAPTION=("Segoe UI",8); F_LABEL=("Segoe UI Semibold",9)
-
-# ── Localization / i18n ────────────────────────────────────────────────────────
-_LANG_STRINGS={
-    "en":{
-        "search":"Search","download":"Download","playlist":"Playlist","convert":"Convert",
-        "player":"Player","analyze":"Analyze","stems":"Stems","effects":"Effects",
-        "library":"Library","samples":"Samples","editor":"Editor","record":"Record",
-        "spectro":"Spectrogram","pitch":"Pitch/Time","remix":"Remix","batch":"Batch",
-        "schedule":"Schedule","history":"History","cover":"Cover Art",
-        "play":"Play","pause":"Pause","stop":"Stop","next":"Next","prev":"Previous",
-        "browse":"Browse...","save":"Save","cancel":"Cancel","close":"Close",
-        "apply":"Apply","clear":"Clear","add":"Add","remove":"Remove",
-        "ready":"Ready","loading":"Loading...","error":"Error","success":"Success",
-        "no_file":"No file selected","no_track":"No track loaded",
-        "settings":"Settings","about":"About","help":"Help","tools":"Tools","file":"File",
-    },
-    "es":{
-        "search":"Buscar","download":"Descargar","playlist":"Lista","convert":"Convertir",
-        "player":"Reproductor","analyze":"Analizar","stems":"Pistas","effects":"Efectos",
-        "library":"Biblioteca","samples":"Muestras","editor":"Editor","record":"Grabar",
-        "spectro":"Espectro","pitch":"Tono/Tiempo","remix":"Remezcla","batch":"Lote",
-        "schedule":"Programar","history":"Historial","cover":"Portada",
-        "play":"Reproducir","pause":"Pausa","stop":"Detener","next":"Siguiente","prev":"Anterior",
-        "browse":"Examinar...","save":"Guardar","cancel":"Cancelar","close":"Cerrar",
-        "apply":"Aplicar","clear":"Limpiar","add":"Agregar","remove":"Eliminar",
-        "ready":"Listo","loading":"Cargando...","error":"Error","success":"Éxito",
-        "no_file":"Ningún archivo","no_track":"Sin pista","settings":"Ajustes",
-        "about":"Acerca de","help":"Ayuda","tools":"Herramientas","file":"Archivo",
-    },
-    "fr":{
-        "search":"Rechercher","download":"Télécharger","playlist":"Playlist","convert":"Convertir",
-        "player":"Lecteur","analyze":"Analyser","stems":"Pistes","effects":"Effets",
-        "library":"Bibliothèque","samples":"Échantillons","editor":"Éditeur","record":"Enregistrer",
-        "spectro":"Spectrogramme","pitch":"Ton/Temps","remix":"Remix","batch":"Lot",
-        "schedule":"Planifier","history":"Historique","cover":"Pochette",
-        "play":"Lire","pause":"Pause","stop":"Arrêter","next":"Suivant","prev":"Précédent",
-        "browse":"Parcourir...","save":"Enregistrer","cancel":"Annuler","close":"Fermer",
-        "apply":"Appliquer","clear":"Effacer","add":"Ajouter","remove":"Supprimer",
-        "ready":"Prêt","loading":"Chargement...","error":"Erreur","success":"Succès",
-        "no_file":"Aucun fichier","no_track":"Aucune piste","settings":"Paramètres",
-        "about":"À propos","help":"Aide","tools":"Outils","file":"Fichier",
-    },
-    "de":{
-        "search":"Suchen","download":"Herunterladen","playlist":"Playlist","convert":"Konvertieren",
-        "player":"Spieler","analyze":"Analysieren","stems":"Spuren","effects":"Effekte",
-        "library":"Bibliothek","samples":"Samples","editor":"Editor","record":"Aufnehmen",
-        "spectro":"Spektrogramm","pitch":"Tonhöhe/Zeit","remix":"Remix","batch":"Stapel",
-        "schedule":"Planen","history":"Verlauf","cover":"Cover Art",
-        "play":"Abspielen","pause":"Pause","stop":"Stopp","next":"Nächster","prev":"Vorheriger",
-        "browse":"Durchsuchen...","save":"Speichern","cancel":"Abbrechen","close":"Schließen",
-        "apply":"Anwenden","clear":"Löschen","add":"Hinzufügen","remove":"Entfernen",
-        "ready":"Bereit","loading":"Laden...","error":"Fehler","success":"Erfolg",
-        "no_file":"Keine Datei","no_track":"Kein Titel","settings":"Einstellungen",
-        "about":"Über","help":"Hilfe","tools":"Werkzeuge","file":"Datei",
-    },
-    "ja":{
-        "search":"検索","download":"ダウンロード","playlist":"プレイリスト","convert":"変換",
-        "player":"プレーヤー","analyze":"分析","stems":"ステム","effects":"エフェクト",
-        "library":"ライブラリ","samples":"サンプル","editor":"エディタ","record":"録音",
-        "spectro":"スペクトログラム","pitch":"ピッチ/テンポ","remix":"リミックス","batch":"一括処理",
-        "schedule":"スケジュール","history":"履歴","cover":"カバーアート",
-        "play":"再生","pause":"一時停止","stop":"停止","next":"次へ","prev":"前へ",
-        "browse":"参照...","save":"保存","cancel":"キャンセル","close":"閉じる",
-        "apply":"適用","clear":"クリア","add":"追加","remove":"削除",
-        "ready":"準備完了","loading":"読み込み中...","error":"エラー","success":"成功",
-        "no_file":"ファイル未選択","no_track":"トラックなし","settings":"設定",
-        "about":"概要","help":"ヘルプ","tools":"ツール","file":"ファイル",
-    },
-    "pt":{
-        "search":"Pesquisar","download":"Baixar","playlist":"Playlist","convert":"Converter",
-        "player":"Reprodutor","analyze":"Analisar","stems":"Faixas","effects":"Efeitos",
-        "library":"Biblioteca","samples":"Amostras","editor":"Editor","record":"Gravar",
-        "spectro":"Espectrograma","pitch":"Tom/Tempo","remix":"Remix","batch":"Lote",
-        "schedule":"Agendar","history":"Histórico","cover":"Capa",
-        "play":"Tocar","pause":"Pausar","stop":"Parar","next":"Próximo","prev":"Anterior",
-        "browse":"Navegar...","save":"Salvar","cancel":"Cancelar","close":"Fechar",
-        "apply":"Aplicar","clear":"Limpar","add":"Adicionar","remove":"Remover",
-        "ready":"Pronto","loading":"Carregando...","error":"Erro","success":"Sucesso",
-        "no_file":"Nenhum arquivo","no_track":"Sem faixa","settings":"Configurações",
-        "about":"Sobre","help":"Ajuda","tools":"Ferramentas","file":"Arquivo",
-    },
-}
-_CURRENT_LANG="en"
-def _t(key):
-    """Get translated string for current language. Falls back to English."""
-    return _LANG_STRINGS.get(_CURRENT_LANG,_LANG_STRINGS["en"]).get(key,
-           _LANG_STRINGS["en"].get(key,key))
-def set_language(lang):
-    global _CURRENT_LANG
-    if lang in _LANG_STRINGS: _CURRENT_LANG=lang
-SUPPORTED_LANGUAGES=list(_LANG_STRINGS.keys())
+F_TITLE=("Segoe UI Semibold",18); F_LOGO=("Segoe UI",20,"bold"); F_BODY=("Segoe UI",10)
+F_BOLD=("Segoe UI Semibold",10); F_SMALL=("Segoe UI",9); F_BTN=("Segoe UI Semibold",9)
+F_MONO=("Cascadia Code",9); F_TAB=("Segoe UI Semibold",9); F_STATUS=("Segoe UI",8)
+F_HEADER=("Segoe UI Semibold",13); F_SECTION=("Segoe UI Semibold",10)
+F_H1=("Segoe UI Semibold",24); F_H2=("Segoe UI Semibold",20)
+F_H3=("Segoe UI Semibold",16); F_H4=("Segoe UI Semibold",13)
 
 def _lerp_color(c1,c2,t):
     """Linear interpolate between two hex colors. t in [0,1]."""
@@ -590,7 +455,7 @@ ANALYSIS_CACHE_FILE=_migrate_config("analysis_cache")
 SESSION_FILE=_migrate_config("session")
 RECENT_FILES_FILE=_migrate_config("recent_files")
 SUPPRESS=("No supported JavaScript","impersonat","Only deno","js-runtimes","Remote components")
-ACOUSTID_KEY=os.environ.get("ACOUSTID_API_KEY","")
+ACOUSTID_KEY=os.environ.get("ACOUSTID_API_KEY","vNReaS8VLo")
 YDL_BASE={"remote_components":["ejs:github"],"socket_timeout":NETWORK_TIMEOUT}
 def ydl_opts(**kw): return {**YDL_BASE, **kw}
 
@@ -610,10 +475,7 @@ def save_json(p,d):
         tmp=p+".tmp"
         with open(tmp,"w") as f: json.dump(d,f,indent=2)
         os.replace(tmp,p)  # atomic on same filesystem
-    except Exception as e:
-        try: os.unlink(p+".tmp")
-        except OSError: pass
-        import logging; logging.warning(f"save_json failed for {p}: {e}")
+    except Exception: pass
 def fmt_duration(s):
     try: return str(datetime.timedelta(seconds=int(s)))
     except Exception: return "--:--"
@@ -627,11 +489,9 @@ _BLOCKED_SCHEMES = frozenset({"file","ftp","ftps","rtsp","rtmp","smb","ssh","tel
 def is_url(t):
     t=t.strip()
     if not t or len(t)>MAX_URL_LENGTH: return False
-    # Block dangerous URI schemes — only allow http/https
-    try:
-        parsed=urllib.parse.urlparse(t)
-        if parsed.scheme and parsed.scheme.lower() not in ("http","https",""): return False
-    except Exception: return False
+    # Block dangerous URI schemes (file://, ftp://, rtsp://, etc.)
+    scheme=t.split("://",1)[0].lower() if "://" in t else ""
+    if scheme in _BLOCKED_SCHEMES: return False
     return any(p.match(t) for p in URL_PATTERNS)
 _WIN_RESERVED = frozenset({"CON","PRN","AUX","NUL"} |
     {f"COM{i}" for i in range(1,10)} | {f"LPT{i}" for i in range(1,10)})
@@ -694,69 +554,6 @@ class _SilentLogger:
     def debug(self,m): pass
     def warning(self,m): pass
     def error(self,m): pass
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PLUGIN SYSTEM — Custom audio processors loaded from plugins directory
-# ═══════════════════════════════════════════════════════════════════════════════
-
-PLUGINS_DIR=os.path.join(os.path.expanduser("~"),".limewire","plugins")
-
-class PluginBase:
-    """Base class for LimeWire audio processor plugins.
-    Subclass this and implement process(audio_data, sr, **params) → audio_data."""
-    name="Unnamed Plugin"
-    description=""
-    category="Custom"
-    parameters={}  # {"param_name": {"type":"float","min":0,"max":1,"default":0.5,"label":"..."}}
-    def process(self,audio_data,sr,**params):
-        """Process audio data (numpy array) at sample rate sr. Return processed array."""
-        return audio_data
-
-class PluginManager:
-    """Discovers, loads, and manages audio processor plugins."""
-    def __init__(self):
-        self._plugins={}  # name → plugin_instance
-        self._errors=[]
-    def discover(self):
-        """Scan plugins directory and load all .py plugin files."""
-        self._plugins={}; self._errors=[]
-        os.makedirs(PLUGINS_DIR,exist_ok=True)
-        plugin_files=[fn for fn in os.listdir(PLUGINS_DIR)
-                      if fn.endswith(".py") and not fn.startswith("_")]
-        if not plugin_files: return
-        _log.info(f"Loading {len(plugin_files)} plugin(s) from {PLUGINS_DIR}")
-        for fn in plugin_files:
-            path=os.path.join(PLUGINS_DIR,fn)
-            try:
-                import importlib.util
-                spec=importlib.util.spec_from_file_location(fn[:-3],path)
-                mod=importlib.util.module_from_spec(spec)
-                _log.info(f"[PLUGIN] Loading: {path} (review before use)")
-                spec.loader.exec_module(mod)
-                # Find all PluginBase subclasses in the module
-                for attr_name in dir(mod):
-                    attr=getattr(mod,attr_name)
-                    if isinstance(attr,type) and issubclass(attr,PluginBase) and attr is not PluginBase:
-                        inst=attr()
-                        self._plugins[inst.name]=inst
-                        _log.info(f"Loaded plugin: {inst.name} from {fn}")
-            except Exception as e:
-                self._errors.append((fn,str(e)))
-                _log.warning(f"Failed to load plugin {fn}: {e}")
-    def list_plugins(self):
-        return list(self._plugins.values())
-    def get(self,name):
-        return self._plugins.get(name)
-    def process(self,name,audio_data,sr,**params):
-        plugin=self._plugins.get(name)
-        if not plugin: raise ValueError(f"Plugin not found: {name}")
-        return plugin.process(audio_data,sr,**params)
-    def get_errors(self):
-        return list(self._errors)
-
-_plugin_manager=PluginManager()
-try: _plugin_manager.discover()
-except Exception: pass
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FL STUDIO & SERATO HELPERS
@@ -920,13 +717,11 @@ def _write_crate_manual(filepath,crate_name="LimeWire"):
     serato_path=rel_path.lstrip(os.sep).replace("\\","/")
     if serato_path in existing: return True,"Already in crate"
     existing.append(serato_path)
-    tmp_path=crate_path+".tmp"
-    with open(tmp_path,"wb") as f:
+    with open(crate_path,"wb") as f:
         _write_crate_tag(f,"vrsn","1.0/Serato ScratchLive Crate")
         for track in existing:
             track_data=_encode_crate_str("ptrk",track)
             _write_crate_tag_raw(f,"otrk",track_data)
-    os.replace(tmp_path,crate_path)
     return True,None
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1513,7 +1308,7 @@ def _srt_timestamp(s):
 # MODERN UI WIDGETS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-SP_XS=4; SP_SM=8; SP_MD=12; SP_LG=16; SP_XL=24; SP_2XL=32
+SP_XS=4; SP_SM=8; SP_MD=12; SP_LG=16; SP_XL=24
 
 def _round_rect(cv,x1,y1,x2,y2,radius=10,**kw):
     """Draw a smooth rounded rectangle on a Canvas."""
@@ -1524,9 +1319,9 @@ def _round_rect(cv,x1,y1,x2,y2,radius=10,**kw):
     return cv.create_polygon(pts,smooth=True,**kw)
 
 class ModernBtn(tk.Canvas):
-    """Canvas-based rounded button with hover/press feedback and smooth transitions."""
+    """Canvas-based rounded button with hover/press feedback."""
     def __init__(self,parent,text="",command=None,width=None,bg_color=None,fg_color=None,
-                 hover_color=None,font=None,padx=20,pady=8,radius=10,**kw):
+                 hover_color=None,font=None,padx=16,pady=6,radius=8,**kw):
         self._bg_c=bg_color or BG
         self._fg_c=fg_color or TEXT
         self._hover_c=hover_color or BTN_HOVER
@@ -1535,7 +1330,8 @@ class ModernBtn(tk.Canvas):
         self._cmd=command
         self._radius=radius
         self._padx=padx; self._pady=pady
-        self._pressed=False; self._animating=False
+        self._pressed=False
+        # Measure text to set canvas size
         _tmp=tk.Label(parent,text=text,font=self._font)
         tw=_tmp.winfo_reqwidth(); th=_tmp.winfo_reqheight(); _tmp.destroy()
         if width: tw=max(tw,width*8)
@@ -1543,30 +1339,20 @@ class ModernBtn(tk.Canvas):
         super().__init__(parent,width=cw,height=ch,bg=parent.cget("bg") if hasattr(parent,"cget") else BG,
                          highlightthickness=0,bd=0,cursor="hand2",**kw)
         self._cw=cw; self._ch=ch
-        self._outline=_round_rect(self,1,1,cw-1,ch-1,radius=radius,fill="",outline=DIVIDER,width=1)
-        self._rect=_round_rect(self,2,2,cw-2,ch-2,radius=max(1,radius-1),fill=self._bg_c,outline="")
+        self._rect=_round_rect(self,1,1,cw-1,ch-1,radius=radius,fill=self._bg_c,outline="")
         self._label=self.create_text(cw//2,ch//2,text=text,font=self._font,fill=self._fg_c)
-        self.tag_raise(self._label)
         self.bind("<Enter>",self._on_enter)
         self.bind("<Leave>",self._on_leave)
         self.bind("<ButtonPress-1>",self._on_press)
         self.bind("<ButtonRelease-1>",self._on_release)
 
-    def _animate_to(self,target,steps=3,step=0):
-        if step>=steps:
-            self.itemconfig(self._rect,fill=target); self._animating=False; return
-        self._animating=True
-        current=self.itemcget(self._rect,"fill")
-        mid=_lerp_color(current,target,(step+1)/steps)
-        self.itemconfig(self._rect,fill=mid)
-        self.after(25,lambda:self._animate_to(target,steps,step+1))
     def _on_enter(self,e=None):
-        self._animate_to(self._hover_c,steps=3)
+        self.itemconfig(self._rect,fill=self._hover_c)
     def _on_leave(self,e=None):
-        self._pressed=False; self._animate_to(self._bg_c,steps=3)
+        self._pressed=False; self.itemconfig(self._rect,fill=self._bg_c)
     def _on_press(self,e=None):
         self._pressed=True
-        self.itemconfig(self._rect,fill=BTN_PRESSED)
+        self.itemconfig(self._rect,fill=_lerp_color(self._hover_c,"#000000",0.15))
     def _on_release(self,e=None):
         if self._pressed and self._cmd:
             self._pressed=False; self.itemconfig(self._rect,fill=self._hover_c)
@@ -1584,14 +1370,11 @@ class ModernBtn(tk.Canvas):
         if "state" in kw:
             st=kw.pop("state")
             if st=="disabled":
-                self.itemconfig(self._rect,fill=SURFACE_2)
-                self.itemconfig(self._label,fill=_lerp_color(TEXT_DIM,BG,0.3))
-                self.itemconfig(self._outline,outline=DIVIDER)
+                self.itemconfig(self._rect,fill=TROUGH); self.itemconfig(self._label,fill=TEXT_DIM)
                 self.unbind("<Enter>"); self.unbind("<Leave>"); self.unbind("<ButtonPress-1>"); self.unbind("<ButtonRelease-1>")
                 self["cursor"]=""
             else:
                 self.itemconfig(self._rect,fill=self._bg_c); self.itemconfig(self._label,fill=self._fg_c)
-                self.itemconfig(self._outline,outline=DIVIDER)
                 self.bind("<Enter>",self._on_enter); self.bind("<Leave>",self._on_leave)
                 self.bind("<ButtonPress-1>",self._on_press); self.bind("<ButtonRelease-1>",self._on_release)
                 self["cursor"]="hand2"
@@ -1604,75 +1387,66 @@ class ModernBtn(tk.Canvas):
         return super().cget(key)
 
 def ClassicBtn(parent,text,cmd,width=None):
-    return ModernBtn(parent,text=text,command=cmd,width=width,bg_color=SURFACE_2,fg_color=TEXT,hover_color=BTN_HOVER)
+    return ModernBtn(parent,text=text,command=cmd,width=width)
 def LimeBtn(parent,text,cmd,width=None):
     return ModernBtn(parent,text=text,command=cmd,width=width,bg_color=LIME,fg_color="#000000",hover_color=LIME_HOVER)
 def OrangeBtn(parent,text,cmd,width=None):
     return ModernBtn(parent,text=text,command=cmd,width=width,bg_color=ORANGE,fg_color="#FFFFFF",hover_color=ORANGE_HOVER)
 def GroupBox(parent,text):
-    lf=tk.LabelFrame(parent,text=f"  {text}  ",font=F_SECTION,bg=CARD_BG,fg=TEXT,
+    lf=tk.LabelFrame(parent,text=f"  {text}  ",font=F_SECTION,bg=BG,fg=TEXT,
                       relief="flat",bd=0,padx=SP_LG,pady=SP_MD,
-                      highlightthickness=1,highlightbackground=CARD_BORDER,highlightcolor=CARD_BORDER,
+                      highlightthickness=2,highlightbackground=CARD_BORDER,highlightcolor=CARD_BORDER,
                       labelanchor="nw")
-    accent=tk.Frame(lf,bg=LIME,width=4)
-    accent.place(x=0,y=8,relheight=0.85)
+    # Accent stripe on the left edge
+    accent=tk.Frame(lf,bg=LIME,width=3)
+    accent.place(x=0,y=0,relheight=1.0)
     return lf
 def ClassicEntry(parent,var,width=40,**kw):
     return tk.Entry(parent,textvariable=var,font=F_BODY,bg=INPUT_BG,fg=TEXT,relief="flat",bd=0,
-                    insertbackground=LIME,width=width,
-                    highlightthickness=2,highlightbackground=INPUT_BORDER,highlightcolor=INPUT_FOCUS,
-                    selectbackground=BLUE_HL,selectforeground="#FFFFFF",**kw)
+                    insertbackground=TEXT,width=width,
+                    highlightthickness=2,highlightbackground=INPUT_BORDER,highlightcolor=INPUT_FOCUS,**kw)
 def ClassicCombo(parent,var,values,width=14):
     return ttk.Combobox(parent,textvariable=var,values=values,state="readonly",width=width,font=F_BODY)
 def ClassicCheck(parent,text,var):
     return tk.Checkbutton(parent,text=text,variable=var,font=F_BODY,bg=BG,fg=TEXT,activebackground=BG,
-                          activeforeground=LIME,selectcolor=SURFACE_2,anchor="w",relief="flat",bd=0,
-                          highlightthickness=0,padx=SP_SM,pady=3,indicatoron=True,cursor="hand2")
+                          activeforeground=TEXT,selectcolor=INPUT_BG,anchor="w",relief="flat",bd=0,
+                          highlightthickness=0,padx=SP_XS,pady=2,indicatoron=True)
 def ClassicListbox(parent,height=8,**kw):
-    f=tk.Frame(parent,bg=INPUT_BORDER,padx=1,pady=1)
+    f=tk.Frame(parent,bg=CARD_BORDER,padx=1,pady=1)
     lb=tk.Listbox(f,font=F_BODY,bg=INPUT_BG,fg=TEXT,selectbackground=BLUE_HL,selectforeground="#FFFFFF",
-                  relief="flat",height=height,activestyle="none",bd=0,highlightthickness=0,
-                  selectborderwidth=0,**kw)
-    sb=ttk.Scrollbar(f,orient="vertical",command=lb.yview,style="Vertical.TScrollbar")
+                  relief="flat",height=height,activestyle="none",bd=0,highlightthickness=0,**kw)
+    sb=tk.Scrollbar(f,orient="vertical",command=lb.yview,relief="flat",bd=0,highlightthickness=0)
     lb.config(yscrollcommand=sb.set)
     sb.pack(side="right",fill="y"); lb.pack(side="left",fill="both",expand=True)
     return f,lb
-def ClassicProgress(parent,thin=False):
-    style="Thin.Horizontal.TProgressbar" if thin else "Lime.Horizontal.TProgressbar"
-    return ttk.Progressbar(parent,style=style,mode="determinate",maximum=100)
+def ClassicProgress(parent):
+    return ttk.Progressbar(parent,style="Lime.Horizontal.TProgressbar",mode="determinate",maximum=100)
 def HSep(parent):
-    tk.Frame(parent,bg=DIVIDER,height=1).pack(fill="x",pady=SP_SM)
+    tk.Frame(parent,bg=CARD_BORDER,height=1).pack(fill="x",pady=SP_XS)
 def init_limewire_styles(root):
     s=ttk.Style(root); s.theme_use("clam")
-    s.configure("TCombobox",fieldbackground=INPUT_BG,background=SURFACE_2,foreground=TEXT,arrowcolor=TEXT_DIM,
+    s.configure("TCombobox",fieldbackground=INPUT_BG,background=BG,foreground=TEXT,arrowcolor=TEXT,
                 selectbackground=BLUE_HL,selectforeground="#FFFFFF",bordercolor=INPUT_BORDER,
-                borderwidth=1,relief="flat",padding=[10,7])
+                borderwidth=1,relief="flat",padding=[8,6])
     s.map("TCombobox",bordercolor=[("focus",INPUT_FOCUS)],lightcolor=[("focus",INPUT_FOCUS)],
           darkcolor=[("focus",INPUT_FOCUS)],
           fieldbackground=[("readonly",INPUT_BG)],foreground=[("readonly",TEXT)])
+    # Style the dropdown list
     root.option_add("*TCombobox*Listbox.background",INPUT_BG)
     root.option_add("*TCombobox*Listbox.foreground",TEXT)
     root.option_add("*TCombobox*Listbox.selectBackground",BLUE_HL)
     root.option_add("*TCombobox*Listbox.selectForeground","#FFFFFF")
     root.option_add("*TCombobox*Listbox.font",F_BODY)
+    # Spinbox global styling
     root.option_add("*Spinbox.background",INPUT_BG)
     root.option_add("*Spinbox.foreground",TEXT)
     root.option_add("*Spinbox.buttonBackground",BG)
-    root.option_add("*Spinbox.insertBackground",LIME)
+    root.option_add("*Spinbox.insertBackground",TEXT)
     root.option_add("*Spinbox.selectBackground",BLUE_HL)
     root.option_add("*Spinbox.selectForeground","#FFFFFF")
-    s.configure("Lime.Horizontal.TProgressbar",troughcolor=SURFACE_2,background=LIME,
-                bordercolor=SURFACE_2,lightcolor=LIME_LT,darkcolor=LIME_DK,thickness=8,borderwidth=0)
-    s.configure("Thin.Horizontal.TProgressbar",troughcolor=SURFACE_2,background=LIME,
-                bordercolor=SURFACE_2,lightcolor=LIME_LT,darkcolor=LIME_DK,thickness=4,borderwidth=0)
+    s.configure("Lime.Horizontal.TProgressbar",troughcolor=TROUGH,background=LIME,
+                bordercolor=CARD_BORDER,lightcolor=LIME,darkcolor=LIME_DK,thickness=10,borderwidth=0)
     s.configure("TScale",background=BG,troughcolor=TROUGH,sliderlength=18,sliderrelief="flat",borderwidth=0)
-    # Scrollbar theming
-    s.configure("TScrollbar",background=_lerp_color(BORDER_L,BG,0.3),troughcolor=SURFACE_3,
-                bordercolor=SURFACE_3,arrowcolor=TEXT_DIM,relief="flat",borderwidth=0,width=10)
-    s.map("TScrollbar",background=[("active",BORDER_L),("pressed",TEXT_DIM)])
-    s.configure("Vertical.TScrollbar",background=_lerp_color(BORDER_L,BG,0.3),
-                troughcolor=SURFACE_3,width=10)
-    s.map("Vertical.TScrollbar",background=[("active",BORDER_L),("pressed",TEXT_DIM)])
     s.configure("TNotebook",background=BG,borderwidth=0,tabmargins=[0,0,0,0])
     s.configure("TNotebook.Tab",background=BG,foreground=BG,padding=[0,0],width=0,
                 font=("Segoe UI",1),borderwidth=0,
@@ -1682,10 +1456,11 @@ def init_limewire_styles(root):
           lightcolor=[("selected",BG),("!selected",BG)],
           darkcolor=[("selected",BG),("!selected",BG)],
           bordercolor=[("selected",BG),("!selected",BG)])
+    # Treeview styling (History, Discovery)
     s.configure("Treeview",background=INPUT_BG,foreground=TEXT,fieldbackground=INPUT_BG,
-                borderwidth=0,font=F_BODY,rowheight=28,relief="flat")
-    s.configure("Treeview.Heading",background=SURFACE_2,foreground=TEXT,font=F_BOLD,borderwidth=0,
-                relief="flat",padding=[10,6])
+                borderwidth=0,font=F_BODY,rowheight=24)
+    s.configure("Treeview.Heading",background=BG,foreground=TEXT,font=F_BOLD,borderwidth=0,
+                relief="flat",padding=[8,4])
     s.map("Treeview",background=[("selected",BLUE_HL)],foreground=[("selected","#FFFFFF")])
     s.map("Treeview.Heading",background=[("active",BTN_HOVER)])
 
@@ -1693,8 +1468,7 @@ class ScrollFrame(tk.Frame):
     def __init__(self,parent,**kw):
         super().__init__(parent,bg=BG,**kw)
         self._cv=tk.Canvas(self,bg=BG,highlightthickness=0)
-        vsb=ttk.Scrollbar(self,orient="vertical",command=self._cv.yview,style="Vertical.TScrollbar")
-        self._cv.configure(yscrollcommand=vsb.set)
+        vsb=tk.Scrollbar(self,orient="vertical",command=self._cv.yview); self._cv.configure(yscrollcommand=vsb.set)
         vsb.pack(side="right",fill="y"); self._cv.pack(side="left",fill="both",expand=True)
         self.inner=tk.Frame(self._cv,bg=BG)
         self._wid=self._cv.create_window((0,0),window=self.inner,anchor="nw")
@@ -1724,12 +1498,12 @@ class ToolTip:
         self._aid=None
         tw=tk.Toplevel(self._w); tw.overrideredirect(True); tw.attributes("-topmost",True)
         tw.configure(bg=CARD_BORDER)
-        f=tk.Frame(tw,bg=SURFACE,padx=SP_MD,pady=SP_SM)
+        f=tk.Frame(tw,bg=SURFACE_2,padx=SP_SM,pady=SP_XS)
         f.pack(fill="both",expand=True,padx=1,pady=1)
-        tk.Label(f,text=self._text,font=F_SMALL,bg=SURFACE,fg=TEXT,wraplength=280,justify="left").pack()
+        tk.Label(f,text=self._text,font=F_SMALL,bg=SURFACE_2,fg=TEXT,wraplength=250,justify="left").pack()
         tw.update_idletasks()
         x=self._w.winfo_rootx()+self._w.winfo_width()//2-tw.winfo_width()//2
-        y=self._w.winfo_rooty()+self._w.winfo_height()+6
+        y=self._w.winfo_rooty()+self._w.winfo_height()+4
         tw.geometry(f"+{x}+{y}")
         self._tw=tw
 
@@ -1757,7 +1531,7 @@ class _ToastManager:
         for i,t in enumerate(self._stack):
             try:
                 w=t.winfo_width()
-                tx=pw-w-SP_LG; ty=py+56+i*58
+                tx=pw-w-SP_LG; ty=py+56+i*52
                 t._target_x=tx; t._y=ty
             except Exception: pass
 
@@ -1771,22 +1545,18 @@ class _Toast(tk.Toplevel):
         self.overrideredirect(True)
         self.attributes("-topmost",True)
         _bg=bg_color or LIME_DK; _fg=fg_color or "#FFFFFF"
-        self.configure(bg=_lerp_color(_bg,"#000000",0.3))
+        self.configure(bg=CARD_BORDER)
         inner=tk.Frame(self,bg=_bg); inner.pack(fill="both",expand=True,padx=1,pady=1)
-        row=tk.Frame(inner,bg=_bg); row.pack(fill="x",padx=SP_LG,pady=SP_MD)
+        row=tk.Frame(inner,bg=_bg); row.pack(fill="x",padx=SP_MD,pady=SP_SM)
         ico=icon or "\u2713"
-        tk.Label(row,text=ico,font=("Segoe UI Symbol",16),bg=_bg,fg=_fg).pack(side="left",padx=(0,SP_MD))
-        tk.Label(row,text=msg,font=F_BOLD,bg=_bg,fg=_fg,wraplength=350,justify="left").pack(side="left",fill="x")
-        close_btn=tk.Label(row,text="\u2715",font=F_CAPTION,bg=_bg,
-                            fg=_lerp_color(_fg,_bg,0.4),cursor="hand2")
-        close_btn.pack(side="right",padx=(SP_SM,0))
-        close_btn.bind("<Button-1>",lambda e:self._fade_out(0.8))
+        tk.Label(row,text=ico,font=("Segoe UI",14),bg=_bg,fg=_fg).pack(side="left",padx=(0,10))
+        tk.Label(row,text=msg,font=F_BOLD,bg=_bg,fg=_fg,wraplength=380,justify="left").pack(side="left",fill="x")
         self.update_idletasks()
         pw=parent.winfo_rootx()+parent.winfo_width()
         py=parent.winfo_rooty()
         w=self.winfo_width()
         idx=len(mgr._stack) if mgr else 0
-        self._target_x=pw-w-SP_LG; self._start_x=pw+10; self._y=py+56+idx*58
+        self._target_x=pw-w-SP_LG; self._start_x=pw+10; self._y=py+56+idx*52
         self.geometry(f"+{self._start_x}+{self._y}")
         self._slide_in()
         self.after(duration,self._fade_out)
@@ -1805,8 +1575,7 @@ class _Toast(tk.Toplevel):
         except Exception: pass
 
 def show_toast(parent,msg,level="info",duration=3000):
-    colors={"info":(LIME_DK,"#FFFFFF","\u2713"),"warn":(WARNING,"#000000","\u26A0"),
-            "error":(ERROR,"#FFFFFF","\u2717"),"success":(SUCCESS,"#FFFFFF","\u2713")}
+    colors={"info":(LIME_DK,"#FFFFFF","\u2713"),"warn":(YELLOW,"#000000","\u26A0"),"error":(RED,"#FFFFFF","\u2717")}
     bg,fg,ico=colors.get(level,(LIME_DK,"#FFFFFF","\u2139"))
     _toast_mgr.show(parent,msg,duration,bg,fg,ico)
 
@@ -1816,96 +1585,23 @@ def show_toast(parent,msg,level="info",duration=3000):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class ShortcutRegistry:
-    """Central registry of keyboard shortcuts with help display and customization."""
+    """Central registry of keyboard shortcuts with help display."""
     def __init__(self):
-        self._shortcuts=[]  # [(combo, desc, callback, action_id), ...]
-        self._custom_bindings={}  # action_id → custom combo (from settings)
-    def register(self,combo,desc,callback,action_id=None):
-        aid=action_id or desc.lower().replace(" ","_")
-        # Use custom binding if available
-        effective=self._custom_bindings.get(aid,combo)
-        self._shortcuts.append((effective,desc,callback,aid))
-    def load_custom(self,bindings_dict):
-        """Load custom keybindings from settings."""
-        if bindings_dict: self._custom_bindings=dict(bindings_dict)
-    def get_combo(self,action_id):
-        for combo,desc,cb,aid in self._shortcuts:
-            if aid==action_id: return combo
-        return None
+        self._shortcuts=[]
+    def register(self,combo,desc,callback):
+        self._shortcuts.append((combo,desc,callback))
     def all(self):
-        return [(c,d,cb) for c,d,cb,_ in self._shortcuts]
+        return list(self._shortcuts)
     def show_help(self,parent):
-        w=tk.Toplevel(parent); w.title("Keyboard Shortcuts"); w.geometry("400x420")
+        w=tk.Toplevel(parent); w.title("Keyboard Shortcuts"); w.geometry("400x360")
         w.configure(bg=BG); w.transient(parent); w.grab_set()
         tk.Label(w,text="Keyboard Shortcuts",font=F_H3,bg=BG,fg=TEXT).pack(pady=(SP_LG,SP_SM))
         f=tk.Frame(w,bg=BG); f.pack(fill="both",expand=True,padx=SP_LG,pady=SP_SM)
-        for combo,desc,_,_ in self._shortcuts:
+        for combo,desc,_ in self._shortcuts:
             row=tk.Frame(f,bg=BG); row.pack(fill="x",pady=2)
             tk.Label(row,text=combo,font=F_MONO,bg=SURFACE_2,fg=LIME,padx=SP_SM,pady=2).pack(side="left")
             tk.Label(row,text=desc,font=F_BODY,bg=BG,fg=TEXT).pack(side="left",padx=(SP_SM,0))
-        br=tk.Frame(w,bg=BG); br.pack(pady=SP_MD)
-        ClassicBtn(br,"Customize...",lambda:[w.destroy(),self.show_customize(parent)]).pack(side="left",padx=(0,8))
-        ClassicBtn(br,"Close",w.destroy).pack(side="left")
-    def show_customize(self,parent):
-        """Show shortcut customization dialog."""
-        dlg=tk.Toplevel(parent); dlg.title("Customize Shortcuts"); dlg.geometry("520x500")
-        dlg.configure(bg=BG); dlg.transient(parent); dlg.grab_set()
-        tk.Label(dlg,text="Customize Keyboard Shortcuts",font=F_H3,bg=BG,fg=TEXT).pack(pady=(SP_LG,SP_SM))
-        tk.Label(dlg,text="Click a shortcut to rebind it. Press Escape to cancel.",font=F_SMALL,bg=BG,fg=TEXT_DIM).pack()
-        sf=tk.Frame(dlg,bg=BG); sf.pack(fill="both",expand=True,padx=SP_LG,pady=SP_SM)
-        cv=tk.Canvas(sf,bg=BG,highlightthickness=0); vsb=tk.Scrollbar(sf,orient="vertical",command=cv.yview)
-        cv.configure(yscrollcommand=vsb.set); vsb.pack(side="right",fill="y"); cv.pack(side="left",fill="both",expand=True)
-        inner=tk.Frame(cv,bg=BG); cv.create_window((0,0),window=inner,anchor="nw")
-        inner.bind("<Configure>",lambda e:cv.configure(scrollregion=cv.bbox("all")))
-        entries={}
-        for combo,desc,cb,aid in self._shortcuts:
-            row=tk.Frame(inner,bg=BG); row.pack(fill="x",pady=2)
-            tk.Label(row,text=desc,font=F_BODY,bg=BG,fg=TEXT,width=25,anchor="w").pack(side="left")
-            var=tk.StringVar(value=combo)
-            ent=tk.Entry(row,textvariable=var,font=F_MONO,bg=INPUT_BG,fg=LIME,width=18,relief="flat",bd=0,
-                         insertbackground=TEXT,highlightthickness=2,highlightbackground=INPUT_BORDER,highlightcolor=INPUT_FOCUS)
-            ent.pack(side="left",padx=SP_SM)
-            entries[aid]=var
-            def _capture(e,entry=ent,v=var):
-                parts=[]
-                if e.state & 0x4: parts.append("Ctrl")
-                if e.state & 0x8: parts.append("Alt")
-                if e.state & 0x1: parts.append("Shift")
-                key=e.keysym
-                if key in ("Control_L","Control_R","Alt_L","Alt_R","Shift_L","Shift_R"): return
-                if key=="Escape": entry.selection_clear(); return
-                parts.append(key.capitalize() if len(key)==1 else key)
-                v.set("+".join(parts))
-                entry.selection_clear(); dlg.focus_set()
-                return "break"
-            ent.bind("<KeyPress>",_capture)
-        def _save():
-            new_binds={}
-            for aid,var in entries.items():
-                new_binds[aid]=var.get()
-            self._custom_bindings=new_binds
-            # Save to app settings
-            if hasattr(parent,"settings"):
-                parent.settings["custom_shortcuts"]=new_binds
-                parent._save_settings()
-            # Rebuild bindings
-            if hasattr(parent,"_rebind_shortcuts"):
-                parent._rebind_shortcuts()
-            show_toast(parent,"Shortcuts saved — restart for full effect","info")
-            dlg.destroy()
-        def _reset():
-            self._custom_bindings={}
-            if hasattr(parent,"settings"):
-                parent.settings.pop("custom_shortcuts",None)
-                parent._save_settings()
-            if hasattr(parent,"_rebind_shortcuts"):
-                parent._rebind_shortcuts()
-            show_toast(parent,"Shortcuts reset to defaults","info")
-            dlg.destroy()
-        br=tk.Frame(dlg,bg=BG); br.pack(pady=SP_MD)
-        LimeBtn(br,"Save",_save).pack(side="left",padx=(0,8))
-        OrangeBtn(br,"Reset Defaults",_reset).pack(side="left",padx=(0,8))
-        ClassicBtn(br,"Cancel",dlg.destroy).pack(side="left")
+        ClassicBtn(w,"Close",w.destroy).pack(pady=SP_MD)
 
 class CommandPalette(tk.Toplevel):
     """Ctrl+K command palette with fuzzy search."""
@@ -2008,10 +1704,10 @@ class CommandPalette(tk.Toplevel):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LimeWire 2.0.1 Studio Edition"); self.minsize(760,700)
+        self.title("LimeWire 1.1 Studio Edition"); self.minsize(760,700)
         # Fit window to screen
         sw,sh=self.winfo_screenwidth(),self.winfo_screenheight()
-        w,h=min(960,sw-40),min(960,sh-80)
+        w,h=min(820,sw-40),min(960,sh-80)
         self.geometry(f"{w}x{h}")
         self.configure(bg=BG)
         self._apply_dark_titlebar()
@@ -2019,8 +1715,6 @@ class App(tk.Tk):
         self._completed=0; self._total=0; self._cancel=threading.Event()
         self._dark_mode=False
         self.settings=load_json(SETTINGS_FILE,{"clipboard_watch":True,"proxy":"","rate_limit":""})
-        # Restore language
-        set_language(self.settings.get("language","en"))
         # Restore theme
         theme_mode=self.settings.get("theme","livewire")
         self._dark_mode=(theme_mode!="light"); apply_theme(theme_mode)
@@ -2033,7 +1727,6 @@ class App(tk.Tk):
         self._start_scheduler(); self._start_clipboard_watch()
         self._bind_shortcuts(); self._setup_dnd()
         self._restore_session()
-        self._init_discord_rpc()
         self.protocol("WM_DELETE_WINDOW",self._on_close)
         # Minimize to taskbar instead of quitting on X (Shift+X to actually close)
         self.bind("<Shift-Escape>",lambda e:self._on_close())
@@ -2080,155 +1773,31 @@ class App(tk.Tk):
         """Clean shutdown: save session, stop audio, cancel pending work, destroy."""
         self._save_session()
         self._cancel.set()
-        self._close_discord_rpc()
         try: _audio.stop()
         except Exception: pass
         self.destroy()
-    def _init_discord_rpc(self):
-        """Initialize Discord Rich Presence connection (optional)."""
-        self._discord_rpc=None
-        if not HAS_DISCORD_RPC or not self.settings.get("discord_rpc",True): return
-        def _connect():
-            try:
-                # LimeWire Discord Application ID (placeholder — replace with real app ID)
-                rpc=DiscordRPC("1234567890123456789")
-                rpc.connect()
-                self._discord_rpc=rpc
-                self._update_discord_rpc("Idle","LimeWire Studio Edition")
-            except Exception: self._discord_rpc=None
-        threading.Thread(target=_connect,daemon=True).start()
-    def _update_discord_rpc(self,state,details,large_text="LimeWire"):
-        """Update Discord Rich Presence status."""
-        if not self._discord_rpc: return
-        try:
-            self._discord_rpc.update(state=state,details=details[:128],
-                large_image="limewire_logo",large_text=large_text,
-                start=int(time.time()))
-        except Exception: self._discord_rpc=None  # Disconnected
-    def _close_discord_rpc(self):
-        if self._discord_rpc:
-            try: self._discord_rpc.close()
-            except Exception: pass
     def _bind_shortcuts(self):
         self._shortcut_reg=ShortcutRegistry()
         sr=self._shortcut_reg
-        # Load custom bindings from settings
-        sr.load_custom(self.settings.get("custom_shortcuts",{}))
-        sr.register("Ctrl+D","Download / Grab URL",lambda:self.pages["search"]._grab(),"grab_url")
-        sr.register("Ctrl+O","Open downloads folder",self._open_dl_folder,"open_folder")
-        sr.register("Space","Play / Pause",lambda:self._space_toggle(None),"play_pause")
-        sr.register("Ctrl+K","Command Palette",lambda:CommandPalette(self),"command_palette")
-        sr.register("Ctrl+?","Show shortcuts",lambda:self._shortcut_reg.show_help(self),"show_shortcuts")
-        sr.register("Ctrl+Right","Next track",lambda:self._media_next(),"next_track")
-        sr.register("Ctrl+Left","Previous track",lambda:self._media_prev(),"prev_track")
-        sr.register("Ctrl+Up","Volume up",lambda:self._media_vol(5),"vol_up")
-        sr.register("Ctrl+Down","Volume down",lambda:self._media_vol(-5),"vol_down")
-        sr.register("Left","Seek back 5s (Player)",lambda:self._player_seek(-5),"seek_back")
-        sr.register("Right","Seek forward 5s (Player)",lambda:self._player_seek(5),"seek_fwd")
-        sr.register("Shift+Left","Seek back 15s (Player)",lambda:self._player_seek(-15),"seek_back_long")
-        sr.register("Shift+Right","Seek forward 15s (Player)",lambda:self._player_seek(15),"seek_fwd_long")
-        sr.register("Tab","Focus next widget",lambda:self._focus_cycle(1),"focus_next")
-        sr.register("Shift+Tab","Focus previous widget",lambda:self._focus_cycle(-1),"focus_prev")
-        sr.register("Enter","Trigger primary action",lambda:self._primary_action(),"primary_action")
-        self._apply_bindings()
-    def _apply_bindings(self):
-        """Apply actual tk bindings from registry."""
+        sr.register("Ctrl+D","Download / Grab URL",lambda:self.pages["search"]._grab())
+        sr.register("Ctrl+O","Open downloads folder",self._open_dl_folder)
+        sr.register("Space","Play / Pause",lambda:self._space_toggle(None))
+        sr.register("Ctrl+K","Command Palette",lambda:CommandPalette(self))
+        sr.register("Ctrl+?","Show shortcuts",lambda:self._shortcut_reg.show_help(self))
         self.bind("<Control-d>",lambda e:self.pages["search"]._grab())
         self.bind("<Control-o>",lambda e:self._open_dl_folder())
         self.bind("<space>",lambda e:self._space_toggle(e))
         self.bind("<Control-k>",lambda e:CommandPalette(self))
         self.bind("<Control-question>",lambda e:self._shortcut_reg.show_help(self))
+        # Media key bindings
+        sr.register("Ctrl+Right","Next track",lambda:self._media_next())
+        sr.register("Ctrl+Left","Previous track",lambda:self._media_prev())
         self.bind("<Control-Right>",lambda e:self._media_next())
         self.bind("<Control-Left>",lambda e:self._media_prev())
         self.bind("<Control-Up>",lambda e:self._media_vol(5))
         self.bind("<Control-Down>",lambda e:self._media_vol(-5))
-        # Arrow key seeking (only when not in a text widget)
-        self.bind("<Left>",lambda e:self._arrow_key(e,-5))
-        self.bind("<Right>",lambda e:self._arrow_key(e,5))
-        self.bind("<Shift-Left>",lambda e:self._arrow_key(e,-15))
-        self.bind("<Shift-Right>",lambda e:self._arrow_key(e,15))
-        # Tab/Shift+Tab focus cycling
-        self.bind_all("<Tab>",self._on_tab_key)
-        self.bind_all("<Shift-Tab>",self._on_shift_tab_key)
-        # Enter for primary action (only outside text inputs)
-        self.bind("<Return>",self._on_enter_key)
-    def _rebind_shortcuts(self):
-        """Rebuild shortcut registry from saved settings and re-apply bindings."""
-        self._bind_shortcuts()
-    def _arrow_key(self,e,delta):
-        """Arrow key handler: seek if Player is active, otherwise ignore."""
-        if isinstance(e.widget,(tk.Entry,ttk.Entry,ttk.Combobox,tk.Text,tk.Listbox,tk.Spinbox)): return
-        if self._get_active_tab()=="player":
-            self._player_seek(delta)
-            return "break"
-    def _player_seek(self,delta):
-        """Seek player by delta seconds."""
-        pp=self.pages.get("player")
-        if pp and pp._playing and pp._dur>0:
-            cur_pos=_audio.get_pos()
-            new_pos=max(0,min(pp._dur,cur_pos+delta))
-            _audio.play(start=new_pos)
-            pp._playing=True; pp.play_b.config(text="Pause")
-    def _on_tab_key(self,e):
-        """Tab key: cycle focus to next interactive widget in current page."""
-        if isinstance(e.widget,(tk.Text,)): return  # let Text handle Tab normally
-        self._focus_cycle(1)
-        return "break"
-    def _on_shift_tab_key(self,e):
-        """Shift+Tab: cycle focus to previous interactive widget in current page."""
-        if isinstance(e.widget,(tk.Text,)): return
-        self._focus_cycle(-1)
-        return "break"
-    def _focus_cycle(self,direction):
-        """Cycle focus through interactive widgets in the active page."""
-        tab=self._get_active_tab()
-        page=self.pages.get(tab)
-        if not page: return
-        # Collect focusable widgets
-        focusable=[]
-        def _collect(w):
-            for child in w.winfo_children():
-                if isinstance(child,(tk.Entry,ttk.Entry,ttk.Combobox,tk.Spinbox,tk.Listbox)):
-                    focusable.append(child)
-                elif isinstance(child,ModernBtn):
-                    focusable.append(child)
-                elif isinstance(child,(tk.Button,ttk.Button)):
-                    focusable.append(child)
-                elif isinstance(child,(ttk.Scale,)):
-                    focusable.append(child)
-                _collect(child)
-        _collect(page)
-        if not focusable: return
-        cur=self.focus_get()
-        try: idx=focusable.index(cur)
-        except (ValueError,Exception): idx=-1 if direction==1 else len(focusable)
-        nxt=(idx+direction)%len(focusable)
-        focusable[nxt].focus_set()
-    def _on_enter_key(self,e):
-        """Enter key: trigger primary action of active page, unless in text input."""
-        if isinstance(e.widget,(tk.Entry,ttk.Entry,ttk.Combobox,tk.Text,tk.Listbox,tk.Spinbox)): return
-        self._primary_action()
-    def _primary_action(self):
-        """Execute the primary action for the currently active page."""
-        tab=self._get_active_tab()
-        page=self.pages.get(tab)
-        if not page: return
-        # Map of page → primary action method
-        actions={
-            "search":"_grab","download":"_start_batch","playlist":"_fetch",
-            "converter":"_convert","player":"_toggle","analyze":"_analyze",
-            "stems":"_separate","effects":"_apply","discovery":"_scan",
-            "samples":"_preview_sel","editor":"_export",
-            "recorder":"_toggle_rec","spectrogram":"_generate",
-            "pitchtime":"_apply","remixer":"_export",
-            "batch":"_run","schedule":"_add","history":"_redownload",
-            "coverart":"_apply_selected"
-        }
-        method_name=actions.get(tab)
-        if method_name and hasattr(page,method_name):
-            getattr(page,method_name)()
     def _space_toggle(self,e):
-        if e and isinstance(e.widget,(tk.Entry,ttk.Entry,ttk.Combobox,tk.Text,tk.Listbox,tk.Spinbox)): return
+        if isinstance(e.widget,(tk.Entry,ttk.Entry,ttk.Combobox,tk.Text,tk.Listbox,tk.Spinbox)): return
         pp=self.pages.get("player")
         if pp: pp._toggle()
     def _media_next(self):
@@ -2307,41 +1876,24 @@ class App(tk.Tk):
                 pp.plb.insert("end",os.path.basename(path))
             self._show_tab("player")
     def _build_menubar(self):
-        _mc=dict(bg=SURFACE_2,fg=TEXT,activebackground=LIME,activeforeground=BG_DARK,
-                 disabledforeground=TEXT_DIM,font=F_BODY)
-        mb=tk.Menu(self,**_mc)
-        fm=tk.Menu(mb,tearoff=0,**_mc)
+        mb=tk.Menu(self,font=F_BODY,bg=BG)
+        fm=tk.Menu(mb,tearoff=0,font=F_BODY)
         fm.add_command(label="Open Downloads Folder",command=self._open_dl_folder)
         # Recent Files submenu
-        self._recent_menu=tk.Menu(fm,tearoff=0,**_mc)
+        self._recent_menu=tk.Menu(fm,tearoff=0,font=F_BODY)
         fm.add_cascade(label="Recent Files",menu=self._recent_menu)
         self._refresh_recent_menu()
         fm.add_separator(); fm.add_command(label="Exit",command=self.destroy)
         mb.add_cascade(label="File",menu=fm)
-        tm=tk.Menu(mb,tearoff=0,**_mc)
+        tm=tk.Menu(mb,tearoff=0,font=F_BODY)
         tm.add_command(label="Clear History",command=lambda:(self.history.clear(),save_json(HISTORY_FILE,[])) if messagebox.askyesno("Clear","Clear?") else None)
         tm.add_separator()
         tm.add_command(label="Cycle Theme (Light/Dark/Modern)",command=self._toggle_dark_mode)
         tm.add_command(label="Check yt-dlp Update",command=self._check_ytdlp_update)
-        tm.add_command(label="Check App Update",command=self._check_app_update)
         tm.add_separator()
-        tm.add_command(label="Cloud Sync → Export",command=self._cloud_sync_export)
-        tm.add_command(label="Cloud Sync → Import",command=self._cloud_sync_import)
-        tm.add_separator()
-        tm.add_command(label="Open Plugins Folder",command=lambda:open_folder(PLUGINS_DIR))
-        tm.add_separator()
-        # Language submenu
-        lm=tk.Menu(tm,tearoff=0,**_mc)
-        lang_names={"en":"English","es":"Español","fr":"Français","de":"Deutsch","ja":"日本語","pt":"Português"}
-        for code in SUPPORTED_LANGUAGES:
-            lm.add_command(label=lang_names.get(code,code),
-                command=lambda c=code:[set_language(c),self.settings.__setitem__("language",c),self._save_settings(),
-                    show_toast(self,f"Language: {lang_names.get(c,c)} (restart for full effect)","info")])
-        tm.add_cascade(label="Language",menu=lm)
-        tm.add_command(label="Load Community Theme",command=self._load_community_theme)
         tm.add_command(label="Set FL Studio Path",command=self._set_fl_path)
         mb.add_cascade(label="Tools",menu=tm)
-        hm=tk.Menu(mb,tearoff=0,**_mc)
+        hm=tk.Menu(mb,tearoff=0,font=F_BODY)
         caps = []
         if HAS_LIBROSA: caps.append("BPM/Key")
         if HAS_LOUDNESS: caps.append("LUFS")
@@ -2352,59 +1904,54 @@ class App(tk.Tk):
         if HAS_DEMUCS: caps.append("Demucs Stems")
         cap_str = ", ".join(caps) if caps else "None (install optional deps)"
         hm.add_command(label="About",command=lambda:messagebox.showinfo("About",
-            f"LimeWire v2.0.1 Studio Edition\n\n"
+            f"LimeWire v1.1 Studio Edition\n\n"
             f"The modern music utility for everything.\n"
             f"Powered by yt-dlp + Demucs + librosa + pydub\n\n"
-            f"19 pages: Search, Batch DL, Playlist, Convert, Player,\n"
+            f"18 pages: Search, Batch DL, Playlist, Convert, Player,\n"
             f"Analyze, Stems, Effects, Discovery, Samples, Editor,\n"
             f"Recorder, Spectrogram, Pitch/Time, Remixer, Batch Process,\n"
-            f"Scheduler, History, Cover Art\n\n"
+            f"Scheduler, History\n\n"
             f"Active modules: {cap_str}\n\n"
-            f"v2.0: Plugin system, VST3/AU hosting, MIDI mapping,\n"
-            f"cloud sync, auto-update, SoundCloud/Bandcamp search,\n"
-            f"Discord RPC, keyboard customization, arrow seek,\n"
-            f"13 themes + community themes, 6 languages.\n\n"
+            f"Highlights: Modern UI with rounded buttons, gradient header,\n"
+            f"command palette (Ctrl+K), tooltips, stem remixer,\n"
+            f"batch processor, loudness targeting, smart playlists,\n"
+            f"player crossfade, live theme switching.\n\n"
             f"Optional: pip install librosa pyloudnorm demucs pydub\n"
-            f"  sounddevice pyrubberband openai-whisper shazamio pypresence mido\n\n"
+            f"  sounddevice pyrubberband openai-whisper shazamio\n\n"
             f"\"Definitely virus-free since 2024\""))
         mb.add_cascade(label="Help",menu=hm)
         self.config(menu=mb)
 
     def _build_logo_bar(self):
-        LOGO_H=52
+        LOGO_H=56
         bar=tk.Canvas(self,height=LOGO_H,highlightthickness=0,bd=0); bar.pack(fill="x")
         def _draw_gradient(e=None):
             w=bar.winfo_width(); h=LOGO_H
             bar.delete("grad")
-            steps=max(1,w//3)
+            steps=max(1,w//4)
             for i in range(steps):
-                t=i/max(1,steps-1); t=t*t*(3-2*t)  # smoothstep
-                c=_lerp_color(ACCENT_START,ACCENT_END,t)
+                c=_lerp_color(ACCENT_START,ACCENT_END,i/max(1,steps-1))
                 x=int(i*w/steps); x2=int((i+1)*w/steps)+1
                 bar.create_rectangle(x,0,x2,h,fill=c,outline="",tags="grad")
-            bar.create_rectangle(0,h-1,w,h,fill=_lerp_color(ACCENT_END,"#000000",0.4),outline="",tags="grad")
             bar.tag_lower("grad")
+            # Redraw foreground items
             bar.delete("fg")
-            cx,cy=30,LOGO_H//2
-            bar.create_oval(cx-17,cy-17,cx+17,cy+17,fill="",
-                            outline=_lerp_color(ACCENT_START,"#FFFFFF",0.3),width=2,tags="fg")
-            bar.create_oval(cx-13,cy-13,cx+13,cy+13,
-                            fill=_lerp_color(ACCENT_START,"#000000",0.2),outline="",tags="fg")
-            bar.create_text(cx,cy,text="\u26A1",font=("Segoe UI",14),fill="#FFFFFF",tags="fg")
-            tx=56; ty=LOGO_H//2
-            bar.create_text(tx+1,ty+1,text="LimeWire",font=F_LOGO,
-                            fill=_lerp_color(ACCENT_END,"#000000",0.5),anchor="w",tags="fg")
-            bar.create_text(tx,ty,text="LimeWire",font=F_LOGO,fill="#FFFFFF",anchor="w",tags="fg")
-            bx=200; by=LOGO_H//2
-            _round_rect(bar,bx,by-11,bx+82,by+11,radius=11,
-                         fill=_lerp_color(ACCENT_START,"#000000",0.35),
-                         outline=_lerp_color(ACCENT_START,"#FFFFFF",0.15),tags="fg")
-            bar.create_text(bx+41,by,text="v2.0.1 Studio",font=("Segoe UI Semibold",8),fill="#FFFFFF",tags="fg")
-            sx=w-90; sy=LOGO_H//2
+            # Icon circle with glow
+            cx,cy=32,LOGO_H//2
+            bar.create_oval(cx-18,cy-18,cx+18,cy+18,fill="",outline="#555555",width=3,tags="fg")
+            bar.create_oval(cx-14,cy-14,cx+14,cy+14,fill="#3a6e4e",outline="",tags="fg")
+            bar.create_text(cx,cy,text="\u25C9",font=("Segoe UI",18),fill="#FFFFFF",tags="fg")
+            # Title
+            bar.create_text(62,LOGO_H//2,text="LimeWire",font=F_LOGO,fill="#FFFFFF",anchor="w",tags="fg")
+            # Pill badge
+            bx=220; by=LOGO_H//2
+            _round_rect(bar,bx,by-10,bx+90,by+10,radius=10,fill="#3a6e4e",outline="",tags="fg")
+            bar.create_text(bx+45,by,text="v1.1 Studio",font=("Segoe UI",7,"bold"),fill="#FFFFFF",tags="fg")
+            # Status indicator (right side)
+            sx=w-100; sy=LOGO_H//2
             self._status_x=sx; self._status_y=sy
-            bar.create_oval(sx-4,sy-4,sx+4,sy+4,fill=SUCCESS,outline="",tags=("fg","status_dot"))
-            bar.create_text(sx+12,sy,text="Ready",font=F_CAPTION,
-                            fill=_lerp_color("#FFFFFF",ACCENT_END,0.15),anchor="w",tags="fg")
+            bar.create_oval(sx-5,sy-5,sx+5,sy+5,fill=LIME,outline="",tags=("fg","status_dot"))
+            bar.create_text(sx+14,sy,text="Connected",font=F_SMALL,fill="#FFFFFF",anchor="w",tags="fg")
         bar.bind("<Configure>",_draw_gradient)
         self._logo_bar=bar
         self._pulse_status()
@@ -2415,17 +1962,14 @@ class App(tk.Tk):
             dot=bar.find_withtag("status_dot")
             if dot:
                 cur=bar.itemcget(dot[0],"fill")
-                bright=_lerp_color(SUCCESS,"#FFFFFF",0.4)
-                nxt=bright if cur==SUCCESS else SUCCESS
+                nxt=LIME_LT if cur==LIME else LIME
                 bar.itemconfig(dot[0],fill=nxt)
         except Exception: pass
-        try:
-            if self.winfo_exists(): self.after(STATUS_PULSE_MS,self._pulse_status)
-        except Exception: pass
+        self.after(STATUS_PULSE_MS,self._pulse_status)
 
     def _build_toolbar(self):
-        tk.Frame(self,bg=DIVIDER,height=1).pack(fill="x")
-        tb=tk.Frame(self,bg=TOOLBAR,height=44); tb.pack(fill="x"); tb.pack_propagate(False)
+        tk.Frame(self,bg=CARD_BORDER,height=1).pack(fill="x")
+        tb=tk.Frame(self,bg=TOOLBAR,height=48); tb.pack(fill="x"); tb.pack_propagate(False)
         self._toolbar=tb
         self._tb_btns={}
         items=[("search","\U0001F50D","Search"),("download","\U0001F4E5","Batch"),
@@ -2437,30 +1981,22 @@ class App(tk.Tk):
                ("spectrogram","\U0001F308","Spectro"),("pitchtime","\U0001F3B9","Pitch"),
                ("remixer","\U0001F3A7","Remix"),("batch","\u2699","Batch"),
                ("schedule","\u23F0","Schedule"),("history","\U0001F4DC","History"),
-               ("coverart","\U0001F5BC","Cover"),
-               ("settings","\u2699\uFE0F","Settings")]
+               ("coverart","\U0001F5BC","Cover")]
         for name,icon,label in items:
             bf=tk.Frame(tb,bg=TOOLBAR,cursor="hand2")
-            bf.pack(side="left",padx=2,pady=(3,0))
+            bf.pack(side="left",padx=1,pady=(4,0))
             il=tk.Label(bf,text=icon,font=("Segoe UI",11),bg=TOOLBAR,fg=TEXT_DIM)
-            il.pack(side="top",pady=(0,0))
-            nl=tk.Label(bf,text=label,font=F_TAB,bg=TOOLBAR,fg=TEXT_DIM)
+            il.pack(side="top",pady=(0,1))
+            nl=tk.Label(bf,text=label,font=("Segoe UI",7,"bold"),bg=TOOLBAR,fg=TEXT_DIM)
             nl.pack(side="top")
-            ind=tk.Frame(bf,bg=TOOLBAR,height=3); ind.pack(fill="x",side="bottom",pady=(1,0))
+            ind=tk.Frame(bf,bg=TOOLBAR,height=3); ind.pack(fill="x",side="bottom",pady=(2,0))
             self._tb_btns[name]=(bf,il,nl,ind)
             ToolTip(bf,f"Go to {label}")
             for w in (bf,il,nl):
                 w.bind("<Button-1>",lambda e,n=name:self._show_tab(n))
                 w.bind("<Enter>",lambda e,n=name:self._tb_hover(n,True))
                 w.bind("<Leave>",lambda e,n=name:self._tb_hover(n,False))
-        # Theme name maps (used by SettingsPage and _toggle_dark_mode)
-        _theme_display=["LiveWire","Classic Light","Classic Dark","Modern Dark",
-            "Synthwave","Dracula","Catppuccin","Tokyo Night","Spotify",
-            "LimeWire Classic","Nord","Gruvbox","High Contrast"]
-        _theme_keys=list(THEMES.keys())
-        self._theme_name_map=dict(zip(_theme_display,_theme_keys))
-        self._theme_key_map=dict(zip(_theme_keys,_theme_display))
-        tk.Frame(self,bg=DIVIDER,height=1).pack(fill="x")
+        tk.Frame(self,bg=CARD_BORDER,height=1).pack(fill="x")
 
     def _tb_hover(self,name,entering):
         if name not in self._tb_btns: return
@@ -2500,8 +2036,7 @@ class App(tk.Tk):
                                 ("spectrogram","Spectrogram",SpectrogramPage),("pitchtime","Pitch/Time",PitchTimePage),
                                 ("remixer","Remixer",RemixerPage),("batch","Batch Process",BatchProcessorPage),
                                 ("schedule","Schedule",SchedulerPage),("history","History",HistoryPage),
-                                ("coverart","Cover Art",CoverArtPage),
-                                ("settings","Settings",SettingsPage)]:
+                                ("coverart","Cover Art",CoverArtPage)]:
             page=cls(self.nb,self); self.nb.add(page,text=f" {label} "); self.pages[name]=page
         self.nb.bind("<<NotebookTabChanged>>",self._on_tab)
 
@@ -2514,14 +2049,14 @@ class App(tk.Tk):
         if hasattr(self,'_tb_btns'): self._update_tb_active()
 
     def _build_statusbar(self):
-        tk.Frame(self,bg=DIVIDER,height=1).pack(fill="x",side="bottom")
-        sb=tk.Frame(self,bg=SURFACE_3,height=26); sb.pack(fill="x",side="bottom"); sb.pack_propagate(False)
-        self.status_lbl=tk.Label(sb,text="Ready  |  Ctrl+D: Download  Space: Play/Pause  Ctrl+O: Open Folder",font=F_STATUS,bg=SURFACE_3,fg=TEXT_DIM,anchor="w")
-        self.status_lbl.pack(side="left",padx=10,fill="x",expand=True)
-        tk.Frame(sb,bg=DIVIDER,width=1).pack(side="left",fill="y",pady=5)
-        self.dl_count_lbl=tk.Label(sb,text=f"\u2193 {len(self.history)}",font=F_STATUS,bg=SURFACE_3,fg=TEXT,padx=10)
+        tk.Frame(self,bg=CARD_BORDER,height=1).pack(fill="x",side="bottom")
+        sb=tk.Frame(self,bg=BG,height=24); sb.pack(fill="x",side="bottom"); sb.pack_propagate(False)
+        self.status_lbl=tk.Label(sb,text="Ready  |  Ctrl+D: Download  Space: Play/Pause  Ctrl+O: Open Folder",font=F_STATUS,bg=BG,fg=TEXT_DIM,anchor="w")
+        self.status_lbl.pack(side="left",padx=8,fill="x",expand=True)
+        tk.Frame(sb,bg=CARD_BORDER,width=1).pack(side="left",fill="y",pady=4)
+        self.dl_count_lbl=tk.Label(sb,text=f"Downloads: {len(self.history)}",font=F_STATUS,bg=BG,fg=TEXT,padx=10)
         self.dl_count_lbl.pack(side="left")
-        tk.Frame(sb,bg=DIVIDER,width=1).pack(side="left",fill="y",pady=5)
+        tk.Frame(sb,bg=CARD_BORDER,width=1).pack(side="left",fill="y",pady=4)
         mod_map={"FFmpeg":HAS_FFMPEG,"BPM/Key":HAS_LIBROSA,"LUFS":HAS_LOUDNESS,
                  "Shazam":HAS_SHAZAM or HAS_SHAZAM_SEARCH,
                  "MusicBrainz":HAS_MB,"Chromaprint":HAS_ACOUSTID,"Demucs":HAS_DEMUCS,
@@ -2531,8 +2066,7 @@ class App(tk.Tk):
         loaded=sum(mod_map.values()); total=len(mod_map)
         missing=[k for k,v in mod_map.items() if not v]
         tip=f"Missing: {', '.join(missing)}" if missing else "All modules loaded"
-        color=SUCCESS if loaded>=int(total*0.8) else WARNING if loaded>=int(total*0.5) else ERROR
-        mod_lbl=tk.Label(sb,text=f"\u25CF {loaded}/{total}",font=F_STATUS,bg=SURFACE_3,fg=color,padx=10,cursor="hand2")
+        mod_lbl=tk.Label(sb,text=f"\u25CF {loaded}/{total} modules",font=F_STATUS,bg=BG,fg=LIME if loaded>=total//2 else YELLOW,padx=10,cursor="hand2")
         mod_lbl.pack(side="left")
         mod_lbl.bind("<Button-1>",lambda e:messagebox.showinfo("Module Status",
             "\n".join(f"{'\u2713' if v else '\u2717'} {k}" for k,v in mod_map.items())+"\n\n"+tip))
@@ -2541,11 +2075,11 @@ class App(tk.Tk):
     def toast(self,msg,level="info"): show_toast(self,msg,level)
     def add_history(self,entry):
         self.history.insert(0,entry); save_json(HISTORY_FILE,self.history[:HISTORY_MAX])
-        self.dl_count_lbl.config(text=f"\u2193 {len(self.history)}")
+        self.dl_count_lbl.config(text=f"Downloads: {len(self.history)}")
     def _open_dl_folder(self):
         os.makedirs(self.output_dir,exist_ok=True); open_folder(self.output_dir)
     def _toggle_dark_mode(self):
-        cycle=["livewire","light","dark","modern","synthwave","dracula","catppuccin","tokyo","spotify","classic","nord","gruvbox","highcontrast"]
+        cycle=["livewire","light","dark","modern","synthwave","dracula","catppuccin","tokyo","spotify","classic","nord","gruvbox"]
         cur=self.settings.get("theme","livewire")
         if cur not in cycle: cur="livewire"
         nxt=cycle[(cycle.index(cur)+1)%len(cycle)]
@@ -2561,29 +2095,11 @@ class App(tk.Tk):
         # Redraw logo bar gradient
         if hasattr(self,"_logo_bar"):
             self._logo_bar.event_generate("<Configure>")
-        # Sync settings page theme dropdown
-        sp=self.pages.get("settings")
-        if sp and hasattr(sp,"_theme_combo"):
-            sp._theme_combo.set(self._theme_key_map.get(nxt,nxt))
-        show_toast(self,f"Theme: {self._theme_key_map.get(nxt,nxt)}","info")
-    def _on_theme_select(self,event=None):
-        """Apply theme selected from Settings page dropdown."""
-        sp=self.pages.get("settings")
-        if not sp: return
-        display=sp._theme_var.get()
-        nxt=self._theme_name_map.get(display,"livewire")
-        cur=self.settings.get("theme","livewire")
-        if nxt==cur: return
-        old=THEMES.get(cur,THEME_DARK)
-        apply_theme(nxt); self._dark_mode=(nxt!="light")
-        new=THEMES.get(nxt,THEME_DARK)
-        self.settings["theme"]=nxt; self._save_settings()
-        cmap={v.lower():new[k].lower() for k,v in old.items() if isinstance(v,str) and v.startswith("#")}
-        init_limewire_styles(self)
-        self._reconfig_all(self,cmap)
-        if hasattr(self,"_logo_bar"):
-            self._logo_bar.event_generate("<Configure>")
-        show_toast(self,f"Theme: {display}","info")
+        names={"livewire":"LiveWire","light":"Classic Light","dark":"Classic Dark","modern":"Modern Dark",
+               "synthwave":"Synthwave","dracula":"Dracula","catppuccin":"Catppuccin",
+               "tokyo":"Tokyo Night","spotify":"Spotify","classic":"LimeWire Classic",
+               "nord":"Nord","gruvbox":"Gruvbox"}
+        show_toast(self,f"Theme: {names.get(nxt,nxt)}","info")
 
     def _reconfig_all(self,widget,cmap):
         """Recursively remap widget colors using old→new color mapping."""
@@ -2598,7 +2114,9 @@ class App(tk.Tk):
                 widget.configure(bg=new_bg)
                 if wtype=="Labelframe":
                     try:
-                        widget.configure(bg=CARD_BG,fg=TEXT,highlightbackground=CARD_BORDER,highlightcolor=CARD_BORDER)
+                        old_fg=widget.cget("fg").lower()
+                        new_fg=_remap(old_fg) or TEXT
+                        widget.configure(fg=new_fg,highlightbackground=CARD_BORDER,highlightcolor=CARD_BORDER)
                     except Exception: pass
             elif wtype=="Label":
                 old_bg=widget.cget("bg").lower()
@@ -2610,15 +2128,14 @@ class App(tk.Tk):
                     if new_fg: widget.configure(fg=new_fg)
                 except Exception: pass
             elif wtype=="Checkbutton":
-                try: widget.configure(bg=BG,fg=TEXT,activebackground=BG,activeforeground=LIME,selectcolor=SURFACE_2)
+                try: widget.configure(bg=BG,fg=TEXT,activebackground=BG,activeforeground=TEXT,selectcolor=INPUT_BG)
                 except Exception: pass
             elif wtype=="Radiobutton":
-                try: widget.configure(bg=BG,fg=TEXT,activebackground=BG,activeforeground=LIME,selectcolor=SURFACE_2)
+                try: widget.configure(bg=BG,fg=TEXT,activebackground=BG,activeforeground=TEXT,selectcolor=INPUT_BG)
                 except Exception: pass
             elif wtype=="Entry":
-                try: widget.configure(bg=INPUT_BG,fg=TEXT,insertbackground=LIME,
-                                      highlightbackground=INPUT_BORDER,highlightcolor=INPUT_FOCUS,
-                                      selectbackground=BLUE_HL,selectforeground="#FFFFFF")
+                try: widget.configure(bg=INPUT_BG,fg=TEXT,insertbackground=TEXT,
+                                      highlightbackground=INPUT_BORDER,highlightcolor=INPUT_FOCUS)
                 except Exception: pass
             elif wtype=="Listbox":
                 try: widget.configure(bg=INPUT_BG,fg=TEXT,selectbackground=BLUE_HL,selectforeground="#FFFFFF")
@@ -2632,14 +2149,13 @@ class App(tk.Tk):
                 except Exception: pass
             elif wtype=="Canvas":
                 if isinstance(widget,ModernBtn):
+                    # Remap ModernBtn colors
                     new_bg=_remap(widget._bg_c)
                     new_fg=_remap(widget._fg_c)
                     new_hv=_remap(widget._hover_c)
                     if new_bg: widget._bg_c=new_bg; widget.itemconfig(widget._rect,fill=new_bg)
                     if new_fg: widget._fg_c=new_fg; widget.itemconfig(widget._label,fill=new_fg)
                     if new_hv: widget._hover_c=new_hv
-                    try: widget.itemconfig(widget._outline,outline=DIVIDER)
-                    except Exception: pass
                     # Update canvas bg to match parent
                     try:
                         pbg=widget.master.cget("bg") if hasattr(widget.master,"cget") else BG
@@ -2649,10 +2165,6 @@ class App(tk.Tk):
                     old_bg=widget.cget("bg").lower()
                     new_bg=_remap(old_bg)
                     widget.configure(bg=new_bg if new_bg else BG)
-            elif wtype=="Menu":
-                try: widget.configure(bg=SURFACE_2,fg=TEXT,activebackground=LIME,activeforeground=BG_DARK,
-                                      disabledforeground=TEXT_DIM)
-                except Exception: pass
             elif wtype=="Toplevel":
                 widget.configure(bg=BG)
         except Exception: pass
@@ -2673,82 +2185,6 @@ class App(tk.Tk):
             except Exception as e:
                 self.after(0,lambda:show_toast(self,f"Update check failed: {str(e)[:60]}","error"))
         threading.Thread(target=_check,daemon=True).start()
-    def _load_community_theme(self):
-        """Load a community theme from a JSON file."""
-        f=filedialog.askopenfilename(filetypes=[("Theme JSON","*.json"),("All","*.*")],title="Load Community Theme")
-        if not f: return
-        try:
-            data=load_json(f,{})
-            if not isinstance(data,dict) or "BG" not in data:
-                show_toast(self,"Invalid theme file — must have BG, TEXT, LIME, etc. keys","error"); return
-            # Register theme with a custom name
-            name=os.path.splitext(os.path.basename(f))[0].lower().replace(" ","_")
-            # Ensure required keys exist (fill from dark theme)
-            for k,v in THEME_DARK.items():
-                if k not in data: data[k]=v
-            THEMES[name]=data
-            # Apply it
-            old=THEMES.get(self.settings.get("theme","livewire"),THEME_DARK)
-            apply_theme(name); self._dark_mode=True
-            new=data
-            self.settings["theme"]=name; self._save_settings()
-            cmap={v.lower():new[k].lower() for k,v in old.items() if isinstance(v,str) and v.startswith("#")}
-            init_limewire_styles(self); self._reconfig_all(self,cmap)
-            if hasattr(self,"_logo_bar"): self._logo_bar.event_generate("<Configure>")
-            show_toast(self,f"Theme loaded: {name}","success")
-        except Exception as e:
-            show_toast(self,f"Theme error: {str(e)[:60]}","error")
-    def _check_app_update(self):
-        """Check GitHub for newer LimeWire releases."""
-        self.set_status("Checking for updates...")
-        def _check():
-            try:
-                resp=requests.get("https://api.github.com/repos/Ccwilliams314/LimeWire/releases/latest",timeout=10)
-                if resp.status_code==200:
-                    data=resp.json(); tag=data.get("tag_name","")
-                    current="v2.0.1"
-                    if tag and tag>current:
-                        url=data.get("html_url","")
-                        self.after(0,lambda:show_toast(self,f"Update available: {tag}\nVisit GitHub to download","warn",8000))
-                    else:
-                        self.after(0,lambda:show_toast(self,f"LimeWire {current} is up to date","info"))
-                self.after(0,lambda:self.set_status("Ready"))
-            except Exception as e:
-                self.after(0,lambda:show_toast(self,f"Update check failed: {str(e)[:50]}","error"))
-        threading.Thread(target=_check,daemon=True).start()
-    def _cloud_sync_export(self):
-        """Export settings and history to a sync-friendly directory."""
-        sync_dir=self.settings.get("cloud_sync_dir","")
-        if not sync_dir:
-            sync_dir=filedialog.askdirectory(title="Select Cloud Sync Folder (Dropbox/OneDrive/Google Drive)")
-            if not sync_dir: return
-            self.settings["cloud_sync_dir"]=sync_dir; self._save_settings()
-        os.makedirs(sync_dir,exist_ok=True)
-        # Export settings, history, analysis cache, shortcuts
-        for name,src in [("settings",SETTINGS_FILE),("history",HISTORY_FILE),
-                          ("schedule",SCHEDULE_FILE),("analysis_cache",ANALYSIS_CACHE_FILE)]:
-            data=load_json(src,{} if name!="history" else [])
-            save_json(os.path.join(sync_dir,f"limewire_{name}.json"),data)
-        show_toast(self,"Settings exported to cloud sync folder","success")
-    def _cloud_sync_import(self):
-        """Import settings and history from a cloud sync directory."""
-        sync_dir=self.settings.get("cloud_sync_dir","")
-        if not sync_dir:
-            sync_dir=filedialog.askdirectory(title="Select Cloud Sync Folder")
-            if not sync_dir: return
-        imported=0
-        for name,dest in [("settings",SETTINGS_FILE),("history",HISTORY_FILE),
-                          ("schedule",SCHEDULE_FILE),("analysis_cache",ANALYSIS_CACHE_FILE)]:
-            src=os.path.join(sync_dir,f"limewire_{name}.json")
-            if os.path.exists(src):
-                data=load_json(src,{})
-                if data: save_json(dest,data); imported+=1
-        if imported:
-            self.settings=load_json(SETTINGS_FILE,self.settings)
-            self.history=load_json(HISTORY_FILE,[])
-            show_toast(self,f"Imported {imported} files from cloud sync","success")
-        else:
-            show_toast(self,"No sync files found in folder","warning")
     def _set_fl_path(self):
         current=self.settings.get("fl_studio_path","")
         detected=find_fl_studio()
@@ -2777,9 +2213,6 @@ class App(tk.Tk):
         except Exception: return None
     def _start_clipboard_watch(self):
         def _poll():
-            try:
-                if not self.winfo_exists(): return
-            except Exception: return
             if self.settings.get("clipboard_watch",True):
                 try:
                     clip=self.clipboard_get().strip()
@@ -2852,7 +2285,7 @@ class SearchPage(ScrollFrame):
                                   cursor="hand2",command=self._cancel)
         ClassicBtn(sf,"Preview",self._preview).pack(side="left")
         HSep(p)
-        self.clip_lbl=tk.Label(p,text="  Tip: Paste URL, or type sc:query / bc:query / yt:query to search",font=F_SMALL,bg=CARD_BG,fg=TEXT_DIM,
+        self.clip_lbl=tk.Label(p,text="  Tip: Copy a URL and it auto-appears here",font=F_SMALL,bg=CARD_BG,fg=TEXT_DIM,
                                anchor="w",relief="flat",bd=0,padx=8,pady=4,
                                highlightthickness=1,highlightbackground=CARD_BORDER)
         self.clip_lbl.pack(fill="x",padx=10,pady=(6,0))
@@ -2923,15 +2356,6 @@ class SearchPage(ScrollFrame):
         url=self.url_var.get().strip()
         if not url:
             self.url_indicator.config(fg=TEXT_DIM)
-        elif url.startswith("sc:"):
-            self.url_indicator.config(fg=LIME_DK)
-            self.clip_lbl.config(text=f"  SoundCloud search: {url[3:].strip()}",fg=ORANGE)
-        elif url.startswith("bc:"):
-            self.url_indicator.config(fg=LIME_DK)
-            self.clip_lbl.config(text=f"  Bandcamp search: {url[3:].strip()}",fg=ORANGE)
-        elif url.startswith("yt:"):
-            self.url_indicator.config(fg=LIME_DK)
-            self.clip_lbl.config(text=f"  YouTube search: {url[3:].strip()}",fg=ORANGE)
         elif is_url(url):
             self.url_indicator.config(fg=LIME_DK)
             src=detect_source(url)
@@ -2943,8 +2367,7 @@ class SearchPage(ScrollFrame):
             elif mode and fmt:
                 self.clip_lbl.config(text=f"  Auto-detected: {src} ({mode}/{fmt})",fg=LIME_DK)
         else:
-            self.url_indicator.config(fg=YELLOW)
-            self.clip_lbl.config(text=f"  Will search YouTube for: {url[:50]}",fg=TEXT_DIM)
+            self.url_indicator.config(fg=RED)
     def _save_settings(self):
         self.app.settings["proxy"]=self.proxy_var.get().strip()
         self.app.settings["rate_limit"]=self.rate_var.get().strip()
@@ -2980,17 +2403,7 @@ class SearchPage(ScrollFrame):
 
     def _grab(self):
         url=self.url_var.get().strip()
-        if not url: return
-        # Support search queries: "sc:query" for SoundCloud, "bc:query" for Bandcamp, "yt:query" for YouTube
-        if url.startswith("sc:"):
-            url=f"scsearch:{url[3:].strip()}"
-        elif url.startswith("bc:"):
-            url=f"bcsearch:{url[3:].strip()}"
-        elif url.startswith("yt:"):
-            url=f"ytsearch:{url[3:].strip()}"
-        elif "http" not in url and not url.startswith(("scsearch:","bcsearch:","ytsearch:")):
-            # Treat bare text as YouTube search
-            url=f"ytsearch:{url}"
+        if not url or "http" not in url: return
         if self._downloading: return
         self._downloading=True; self.app._cancel.clear()
         self.prog["value"]=0; self.pct_lbl.config(text="0%")
@@ -3167,8 +2580,7 @@ class AnalyzePage(ScrollFrame):
         eg=GroupBox(p,"Export Results"); eg.pack(fill="x",padx=10,pady=(0,6))
         er=tk.Frame(eg,bg=BG); er.pack(fill="x")
         ClassicBtn(er,"Export JSON",self._export_json).pack(side="left",padx=(0,6))
-        ClassicBtn(er,"Export CSV",self._export_csv).pack(side="left",padx=(0,6))
-        OrangeBtn(er,"Share as Image Card",self._export_image_card).pack(side="left")
+        ClassicBtn(er,"Export CSV",self._export_csv).pack(side="left")
 
         # Audio Tools section
         atg=GroupBox(p,"Audio Tools"); atg.pack(fill="x",padx=10,pady=(0,6))
@@ -3489,58 +2901,6 @@ class AnalyzePage(ScrollFrame):
             with open(path,"w",newline="") as f:
                 w=csv.writer(f); w.writerow(data.keys()); w.writerow(data.values())
             self.status_lbl.config(text=f"Exported to {os.path.basename(path)}",fg=LIME_DK)
-
-    def _export_image_card(self):
-        """Export analysis results as a shareable PNG image card."""
-        data=self._get_results_dict()
-        if not data.get("file"):
-            messagebox.showinfo("LimeWire","Analyze a file first."); return
-        path=filedialog.asksaveasfilename(defaultextension=".png",filetypes=[("PNG","*.png")],
-            initialfile=os.path.splitext(os.path.basename(data["file"]))[0]+"_card.png")
-        if not path: return
-        try:
-            from PIL import Image,ImageDraw,ImageFont
-            W,H=600,400; card=Image.new("RGB",(W,H),"#1a1a2e")
-            draw=ImageDraw.Draw(card)
-            # Gradient header bar
-            for y in range(80):
-                r=int(50+y*1.2); g=int(180-y*0.5); b=int(80+y*0.3)
-                draw.line([(0,y),(W,y)],fill=(r,g,b))
-            # Text
-            try: font_lg=ImageFont.truetype("segoeui.ttf",28)
-            except Exception: font_lg=ImageFont.load_default()
-            try: font_md=ImageFont.truetype("segoeui.ttf",18)
-            except Exception: font_md=font_lg
-            try: font_sm=ImageFont.truetype("segoeui.ttf",14)
-            except Exception: font_sm=font_md
-            # Title
-            title=os.path.splitext(os.path.basename(data["file"]))[0][:40]
-            draw.text((20,20),title,fill="#FFFFFF",font=font_lg)
-            draw.text((20,55),"LimeWire Analysis",fill="#80ffaa",font=font_sm)
-            # Results
-            y=100; items=[("BPM",data.get("bpm","--")),("Key",data.get("key","--")),
-                          ("Camelot",data.get("camelot","--")),("Loudness",f"{data.get('lufs','--')} LUFS"),
-                          ("True Peak",f"{data.get('true_peak','--')} dBFS"),
-                          ("Duration",data.get("duration","--")),("Sample Rate",data.get("sample_rate","--"))]
-            for label,val in items:
-                draw.text((30,y),f"{label}:",fill="#aaaaaa",font=font_md)
-                draw.text((200,y),str(val),fill="#FFFFFF",font=font_md)
-                y+=36
-            # Footer
-            draw.text((20,H-30),"Generated by LimeWire Studio Edition",fill="#555555",font=font_sm)
-            # Embed album art if available
-            fp=data.get("file","")
-            art_data,_=extract_cover_art(fp) if fp else (None,None)
-            if art_data:
-                try:
-                    art=Image.open(BytesIO(art_data)).convert("RGB").resize((120,120),Image.LANCZOS)
-                    card.paste(art,(460,100))
-                    draw.rectangle([(459,99),(581,221)],outline="#80ffaa",width=2)
-                except Exception: pass
-            card.save(path); self.status_lbl.config(text=f"Image card saved: {os.path.basename(path)}",fg=LIME_DK)
-            show_toast(self.app,"Analysis card exported","success")
-        except Exception as e:
-            messagebox.showerror("Export Error",str(e))
 
     # ── DJ Integration methods ──
     def _write_serato_tags(self):
@@ -4211,8 +3571,6 @@ class PlayerPage(ScrollFrame):
         ClassicBtn(pr,"Add Downloads",self._adddl).pack(side="left",padx=(0,4))
         ClassicBtn(pr,"Save M3U",self._save_m3u).pack(side="left",padx=(0,4))
         ClassicBtn(pr,"Load M3U",self._load_m3u).pack(side="left",padx=(0,4))
-        OrangeBtn(pr,"Share JSON",self._share_playlist_json).pack(side="left",padx=(0,4))
-        ClassicBtn(pr,"Import JSON",self._import_playlist_json).pack(side="left",padx=(0,4))
         ClassicBtn(pr,"Clear",self._clr).pack(side="left")
         self.plf,self.plb=ClassicListbox(plg,height=7); self.plf.pack(fill="both",expand=True)
         self.plb.bind("<Double-Button-1>",self._psel)
@@ -4273,7 +3631,6 @@ class PlayerPage(ScrollFrame):
         try:
             _audio.load(path); _audio.set_volume(self.vol.get()/100); _audio.play(); self._playing=True; self.play_b.config(text="Pause")
             show_toast(self.app,f"Now Playing: {name}","info")
-            self.app._update_discord_rpc(f"Playing: {name[:60]}",f"LimeWire Studio — {fmt_duration(self._dur)}")
             self.app._add_recent_file(path)
         except Exception as e: messagebox.showerror("LimeWire",str(e))
         # Up Next indicator
@@ -4367,9 +3724,7 @@ class PlayerPage(ScrollFrame):
                 elif self._dur>0 and pos>=self._dur-1: self._next()
             elif self._playing and not _audio.get_busy(): self._next()
         except Exception: pass
-        try:
-            if self.winfo_exists(): self.after(PLAYER_UPDATE_MS,self._upd_pos)
-        except Exception: pass
+        self.after(PLAYER_UPDATE_MS,self._upd_pos)
     def _analyze_cur(self):
         if self._cur>=0 and self._cur<len(self._playlist):
             ap=self.app.pages.get("analyze")
@@ -4441,73 +3796,14 @@ class PlayerPage(ScrollFrame):
     def _load_m3u(self):
         path=filedialog.askopenfilename(filetypes=[("M3U Playlist","*.m3u"),("All","*.*")])
         if not path: return
-        _AUDIO_EXTS=frozenset({".mp3",".wav",".flac",".ogg",".m4a",".aac",".opus",".wma",".aiff"})
-        try:
-            with open(path,"r",encoding="utf-8") as f:
-                for line in f:
-                    line=line.strip()
-                    if line and not line.startswith("#") and os.path.splitext(line)[1].lower() in _AUDIO_EXTS and os.path.exists(line):
-                        if line not in self._playlist_set:
-                            self._playlist.append(line); self._playlist_set.add(line)
-                            self.plb.insert("end",os.path.basename(line))
-            self.app.toast(f"Loaded playlist: {len(self._playlist)} tracks")
-        except Exception as e:
-            self.app.toast(f"Failed to load M3U: {str(e)[:50]}","error")
-    def _share_playlist_json(self):
-        """Export collaborative playlist as shareable JSON with metadata."""
-        if not self._playlist: return
-        cache=load_json(ANALYSIS_CACHE_FILE,{})
-        tracks=[]
-        for fp in self._playlist:
-            entry={"path":fp,"filename":os.path.basename(fp)}
-            # Try to add metadata
-            try:
-                mf=mutagen.File(fp)
-                if mf:
-                    if hasattr(mf,"tags") and mf.tags:
-                        for k in mf.tags:
-                            if "TIT2" in str(k): entry["title"]=str(mf.tags[k])
-                            if "TPE1" in str(k): entry["artist"]=str(mf.tags[k])
-                    if hasattr(mf,"info"): entry["duration"]=round(getattr(mf.info,"length",0),1)
-            except Exception: pass
-            # Add analysis data if available
-            mtime=os.path.getmtime(fp) if os.path.exists(fp) else 0
-            cache_key=f"{fp}|{mtime}"
-            if cache_key in cache:
-                cd=cache[cache_key]
-                entry["bpm"]=cd.get("bpm"); entry["key"]=cd.get("key"); entry["camelot"]=cd.get("camelot")
-            tracks.append(entry)
-        playlist_data={"version":"1.0","app":"LimeWire Studio","created":datetime.datetime.now().isoformat(),
-                       "track_count":len(tracks),"tracks":tracks}
-        path=filedialog.asksaveasfilename(defaultextension=".json",filetypes=[("JSON Playlist","*.json")],
-            initialfile="limewire_playlist.json")
-        if path:
-            save_json(path,playlist_data)
-            self.app.toast(f"Shared playlist: {len(tracks)} tracks","success")
-    def _import_playlist_json(self):
-        """Import collaborative playlist from shared JSON."""
-        path=filedialog.askopenfilename(filetypes=[("JSON Playlist","*.json"),("All","*.*")])
-        if not path: return
-        try:
-            data=load_json(path,{})
-            tracks=data.get("tracks",[])
-            added=0
-            for t in tracks:
-                fp=t.get("path","")
-                _AUDIO_EXTS=frozenset({".mp3",".wav",".flac",".ogg",".m4a",".aac",".opus",".wma",".aiff"})
-                if fp and os.path.splitext(fp)[1].lower() in _AUDIO_EXTS and os.path.exists(fp) and fp not in self._playlist_set:
-                    self._playlist.append(fp); self._playlist_set.add(fp)
-                    name=t.get("title") or os.path.basename(fp)
-                    bpm=t.get("bpm",""); key=t.get("key","")
-                    label=f"{name}"
-                    if bpm: label+=f" [{bpm}bpm]"
-                    if key: label+=f" ({key})"
-                    self.plb.insert("end",label)
-                    added+=1
-            src_info=f" from {data.get('app','unknown')}" if data.get("app") else ""
-            self.app.toast(f"Imported {added} tracks{src_info}","success")
-        except Exception as e:
-            self.app.toast(f"Import error: {str(e)[:50]}","error")
+        with open(path,"r",encoding="utf-8") as f:
+            for line in f:
+                line=line.strip()
+                if line and not line.startswith("#") and os.path.exists(line):
+                    if line not in self._playlist_set:
+                        self._playlist.append(line); self._playlist_set.add(line)
+                        self.plb.insert("end",os.path.basename(line))
+        self.app.toast(f"Loaded playlist: {len(self._playlist)} tracks")
 
 class SchedulerPage(ScrollFrame):
     """Schedule downloads for future execution."""
@@ -4665,7 +3961,7 @@ class HistoryPage(ScrollFrame):
                 new_name=new_name.replace("{bpm}",bpm or "0").replace("{key}",key or "?")
                 new_name=new_name.replace("{date}",date).replace("{n}",str(i+1)).replace("{ext}",ext)
                 # Sanitize
-                new_name=sanitize_filename(new_name)
+                new_name=re.sub(r'[/<>:"|?*]','_',new_name)
                 old=os.path.basename(fp)
                 preview_lb.insert("end",f"{old[:25]:25s} \u2192 {new_name}")
         pat_var.trace_add("write",_preview); _preview()
@@ -4690,11 +3986,8 @@ class HistoryPage(ScrollFrame):
                 new_name=pat.replace("{title}",title).replace("{artist}",artist or "Unknown")
                 new_name=new_name.replace("{bpm}",bpm or "0").replace("{key}",key or "?")
                 new_name=new_name.replace("{date}",date).replace("{n}",str(i+1)).replace("{ext}",ext)
-                new_name=sanitize_filename(new_name)
-                parent_dir=os.path.dirname(os.path.abspath(fp))
-                new_path=os.path.join(parent_dir,new_name)
-                # Prevent path traversal
-                if os.path.dirname(os.path.abspath(new_path))!=parent_dir: continue
+                new_name=re.sub(r'[/<>:"|?*]','_',new_name)
+                new_path=os.path.join(os.path.dirname(fp),new_name)
                 if new_path!=fp and not os.path.exists(new_path):
                     try: os.rename(fp,new_path); entry["filepath"]=new_path; renamed+=1
                     except Exception: pass
@@ -4730,10 +4023,6 @@ class EffectsPage(ScrollFrame):
         tk.Label(ar,text="Add Effect:",font=F_BOLD,bg=BG,fg=TEXT).pack(side="left",padx=(0,6))
         self._fx_names=["Compressor","Reverb","Delay","Distortion","Gain","NoiseGate",
                         "HighpassFilter","LowpassFilter","HighShelfFilter","LowShelfFilter","Chorus","Phaser"]
-        # Add loaded plugins to effects list
-        for p in _plugin_manager.list_plugins():
-            plugin_label=f"\U0001F9E9 {p.name}"
-            if plugin_label not in self._fx_names: self._fx_names.append(plugin_label)
         self._fx_var=tk.StringVar(value="Compressor")
         ClassicCombo(ar,self._fx_var,self._fx_names,width=16).pack(side="left",padx=(0,6))
         LimeBtn(ar,"Add",self._add_fx).pack(side="left",padx=(0,6))
@@ -4757,8 +4046,6 @@ class EffectsPage(ScrollFrame):
         abr=tk.Frame(ag,bg=BG); abr.pack(fill="x")
         LimeBtn(abr,"Apply Effects",self._apply,width=18).pack(side="left",padx=(0,8))
         ClassicBtn(abr,"Preview (5s)",self._preview).pack(side="left",padx=(0,8))
-        OrangeBtn(abr,"Load VST3 Plugin",self._load_vst).pack(side="left",padx=(0,8))
-        ClassicBtn(abr,"Reload Plugins",self._reload_plugins).pack(side="left")
         self.fx_status=tk.Label(ag,text="Add effects above, then click Apply",
                                 font=F_SMALL,bg=BG,fg=TEXT_DIM,anchor="w")
         self.fx_status.pack(fill="x",pady=(4,0))
@@ -4877,67 +4164,10 @@ class EffectsPage(ScrollFrame):
         except Exception as e:
             show_toast(self.app,f"Load failed: {e}","error")
 
-    def _load_vst(self):
-        """Load a VST3/AU plugin file into the effects chain."""
-        if not HAS_PEDALBOARD:
-            show_toast(self.app,"pedalboard required for VST hosting","error"); return
-        ftypes=[("VST3 Plugin","*.vst3")]
-        if IS_MACOS: ftypes.append(("Audio Unit","*.component"))
-        ftypes.append(("All","*.*"))
-        f=filedialog.askopenfilename(filetypes=ftypes,title="Select VST3/AU Plugin")
-        if not f: return
-        try:
-            # Test loading the plugin
-            vst=pedalboard.load_plugin(f)
-            name=os.path.splitext(os.path.basename(f))[0]
-            # Get plugin parameters
-            params={}
-            for param_name in vst.parameters:
-                p=vst.parameters[param_name]
-                params[param_name]=getattr(p,"default_value",0.5)
-            self._push_undo()
-            self._chain.append({"name":f"VST:{name}","params":params,"vst_path":f,"user_loaded":True})
-            self._render_chain()
-            show_toast(self.app,f"Loaded VST: {name}","success")
-        except Exception as e:
-            show_toast(self.app,f"VST load failed: {str(e)[:60]}","error")
-    def _reload_plugins(self):
-        """Reload custom plugins from plugins directory."""
-        _plugin_manager.discover()
-        # Rebuild effects list
-        base_fx=["Compressor","Reverb","Delay","Distortion","Gain","NoiseGate",
-                 "HighpassFilter","LowpassFilter","HighShelfFilter","LowShelfFilter","Chorus","Phaser"]
-        for p in _plugin_manager.list_plugins():
-            label=f"\U0001F9E9 {p.name}"
-            if label not in base_fx: base_fx.append(label)
-        self._fx_names=base_fx
-        errors=_plugin_manager.get_errors()
-        if errors:
-            show_toast(self.app,f"Loaded plugins ({len(errors)} errors)","warning")
-        else:
-            show_toast(self.app,f"Plugins reloaded: {len(_plugin_manager.list_plugins())} loaded","success")
-
-    _ALLOWED_EFFECTS=frozenset({"Reverb","Compressor","Delay","Distortion","Gain",
-        "HighpassFilter","LowpassFilter","PeakFilter","Phaser","Chorus","Limiter",
-        "NoiseGate","Clipping","GSMFullRateCompressor","MP3Compressor","LadderFilter",
-        "IIRFilter","Bitcrush","HighShelfFilter","LowShelfFilter","Convolution","Resample"})
     def _build_board(self):
         """Build pedalboard.Pedalboard from current chain."""
         effects=[]
         for fx in self._chain:
-            # Handle VST plugins — only from user-initiated load, not from presets
-            if fx["name"].startswith("VST:") and fx.get("vst_path") and fx.get("user_loaded"):
-                try:
-                    vst=pedalboard.load_plugin(fx["vst_path"])
-                    for k,v in fx.get("params",{}).items():
-                        try: setattr(vst,k,v)
-                        except Exception: pass
-                    effects.append(vst); continue
-                except Exception: continue
-            # Handle custom plugins (processed separately in _apply)
-            if fx["name"].startswith("\U0001F9E9 "): continue
-            if fx["name"] not in self._ALLOWED_EFFECTS:
-                self.fx_status.config(text=f"Blocked unknown effect: {fx['name']}",fg=RED); continue
             cls=getattr(pedalboard,fx["name"],None)
             if cls:
                 # Map param names
@@ -4991,15 +4221,10 @@ class EffectsPage(ScrollFrame):
                 with pedalboard.io.AudioFile(path) as f:
                     sr=f.samplerate; chunk=f.read(min(sr*5,f.frames))
                 processed=board(chunk,sample_rate=sr)
-                fd,preview_path=tempfile.mkstemp(suffix=".wav",prefix="_lw_fx_")
-                os.close(fd)
-                try:
-                    with pedalboard.io.AudioFile(preview_path,"w",sr,processed.shape[0]) as f:
-                        f.write(processed)
-                    _audio.load(preview_path); _audio.play()
-                finally:
-                    try: os.unlink(preview_path)
-                    except OSError: pass
+                preview_path=os.path.join(os.environ.get("TEMP","."),"_lw_fx_preview.wav")
+                with pedalboard.io.AudioFile(preview_path,"w",sr,processed.shape[0]) as f:
+                    f.write(processed)
+                _audio.load(preview_path); _audio.play()
                 self.after(0,lambda:self.fx_status.config(text="Playing 5s preview...",fg=LIME_DK))
             except Exception as e:
                 self.after(0,lambda:self.fx_status.config(text=f"Preview error: {str(e)[:80]}",fg=RED))
@@ -5082,56 +4307,30 @@ class DiscoveryPage(ScrollFrame):
 
     def _do_scan(self,folder):
         audio_exts={".mp3",".wav",".flac",".ogg",".m4a",".aac",".opus"}
-        # Recursive scan for large libraries
-        files=[]
-        for root,dirs,fnames in os.walk(folder):
-            for fn in fnames:
-                if os.path.splitext(fn)[1].lower() in audio_exts:
-                    files.append(os.path.join(root,fn))
-            if len(files)>=50000: break  # safety cap
+        files=[os.path.join(folder,f) for f in os.listdir(folder)
+               if os.path.splitext(f)[1].lower() in audio_exts]
         if not files:
             self.after(0,lambda:self.scan_status.config(text="No audio files found.",fg=RED)); return
-        self.after(0,lambda n=len(files):self.scan_status.config(text=f"Found {n} files, analyzing...",fg=YELLOW))
-        # Load analysis cache (evict if too large)
+        # Load analysis cache (keyed by filepath|mtime for invalidation)
         cache=load_json(ANALYSIS_CACHE_FILE,{})
-        MAX_CACHE=5000
-        if len(cache)>MAX_CACHE:
-            cache=dict(list(cache.items())[-MAX_CACHE:])
-        self._library={}; analyzed=0; total=len(files)
-        # Split into cached and uncached
-        uncached=[]
-        for fp in files:
+        self._library={}; analyzed=0
+        for i,fp in enumerate(files):
+            pct=int((i/max(1,len(files)))*100)
+            self.after(0,lambda p=pct:self.scan_prog.configure(value=p))
             try: mtime=str(os.path.getmtime(fp))
             except OSError: mtime=""
             cache_key=f"{fp}|{mtime}"
             if cache_key in cache:
-                self._library[fp]=cache[cache_key]
+                entry=cache[cache_key]
             else:
-                uncached.append((fp,cache_key))
-        # Parallel analysis for uncached files using thread pool
-        if uncached:
-            def _analyze_one(item):
-                fp,cache_key=item
                 bk=analyze_bpm_key(fp)
                 bpm=bk.get("bpm"); key=bk.get("key","")
                 camelot=key_to_camelot(key) or ""
                 entry={"bpm":bpm,"key":key,"camelot":camelot,"file":os.path.basename(fp)}
-                return fp,cache_key,entry
-            workers=min(4,os.cpu_count() or 2)
-            with ThreadPoolExecutor(max_workers=workers) as pool:
-                futures={pool.submit(_analyze_one,item):item for item in uncached}
-                done=0
-                for fut in as_completed(futures):
-                    try:
-                        fp,cache_key,entry=fut.result()
-                        self._library[fp]=entry; cache[cache_key]=entry; analyzed+=1
-                    except Exception: pass
-                    done+=1
-                    if done%10==0 or done==len(uncached):
-                        pct=int(((total-len(uncached)+done)/max(1,total))*100)
-                        self.after(0,lambda p=pct,d=done:self.scan_prog.configure(value=p))
+                cache[cache_key]=entry; analyzed+=1
+            self._library[fp]=entry
         save_json(ANALYSIS_CACHE_FILE,cache)
-        cached=total-analyzed
+        cached=len(files)-analyzed
         msg=f"Scanned {len(self._library)} tracks ({analyzed} analyzed, {cached} cached)"
         self.after(0,lambda:(self.scan_prog.configure(value=100),
             self.scan_status.config(text=msg,fg=LIME_DK),
@@ -5222,17 +4421,14 @@ class DiscoveryPage(ScrollFrame):
         if not self._library: show_toast(self.app,"Scan a library first","warning"); return
         path=filedialog.asksaveasfilename(defaultextension=".csv",filetypes=[("CSV","*.csv")],initialfile="library_analysis.csv")
         if not path: return
-        try:
-            import csv
-            with open(path,"w",newline="",encoding="utf-8") as f:
-                w=csv.writer(f)
-                w.writerow(["File","Path","BPM","Key","Camelot"])
-                for fp,info in sorted(self._library.items(),key=lambda x:x[1].get("bpm") or 0):
-                    bpm=f"{info['bpm']:.1f}" if info.get("bpm") else ""
-                    w.writerow([info.get("file",""),fp,bpm,info.get("key",""),info.get("camelot","")])
-            show_toast(self.app,f"Exported {len(self._library)} tracks to CSV","success")
-        except Exception as e:
-            show_toast(self.app,f"CSV export failed: {str(e)[:50]}","error")
+        import csv
+        with open(path,"w",newline="",encoding="utf-8") as f:
+            w=csv.writer(f)
+            w.writerow(["File","Path","BPM","Key","Camelot"])
+            for fp,info in sorted(self._library.items(),key=lambda x:x[1].get("bpm") or 0):
+                bpm=f"{info['bpm']:.1f}" if info.get("bpm") else ""
+                w.writerow([info.get("file",""),fp,bpm,info.get("key",""),info.get("camelot","")])
+        show_toast(self.app,f"Exported {len(self._library)} tracks to CSV","success")
 
     def _send_to_player(self):
         """Send generated playlist to Player tab."""
@@ -5418,15 +4614,10 @@ class SamplesPage(ScrollFrame):
         self.search_status.config(text=f"Loading preview: {r.get('name','')}...",fg=YELLOW)
         def _do():
             try:
-                fd,tmp=tempfile.mkstemp(suffix=".mp3",prefix="_lw_samp_")
-                os.close(fd)
-                try:
-                    resp=requests.get(preview_url,timeout=15)
-                    with open(tmp,"wb") as f: f.write(resp.content)
-                    _audio.load(tmp); _audio.play()
-                finally:
-                    try: os.unlink(tmp)
-                    except OSError: pass
+                tmp=os.path.join(os.environ.get("TEMP","."),"_lw_sample_preview.mp3")
+                resp=requests.get(preview_url,timeout=15)
+                with open(tmp,"wb") as f: f.write(resp.content)
+                _audio.load(tmp); _audio.play()
                 self.after(0,lambda:self.search_status.config(text=f"Playing: {r.get('name','')}",fg=LIME_DK))
             except Exception as e:
                 self.after(0,lambda:self.search_status.config(text=f"Preview error: {str(e)[:60]}",fg=RED))
@@ -5458,11 +4649,7 @@ class SamplesPage(ScrollFrame):
 
     def _open_web(self):
         r=self._get_selected()
-        if not r: return
-        url=r.get("url","")
-        parsed=urllib.parse.urlparse(url)
-        if parsed.scheme in ("http","https") and parsed.netloc:
-            webbrowser.open(url)
+        if r and r.get("url"): webbrowser.open(r["url"])
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -5919,20 +5106,10 @@ class EditorPage(ScrollFrame):
 
     def _play_preview(self):
         if not self._segment: return
-        seg=self._segment
-        def _do_preview():
-            fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_edit_")
-            os.close(fd)
-            try:
-                seg.export(tmp,format="wav")
-                _audio.load(tmp); _audio.play()
-                self.after(0,lambda:self.exp_status.config(text="Playing preview...",fg=LIME_DK))
-            except Exception as e:
-                self.after(0,lambda:self.exp_status.config(text=f"Preview error: {str(e)[:60]}",fg=RED))
-            finally:
-                try: os.unlink(tmp)
-                except OSError: pass
-        threading.Thread(target=_do_preview,daemon=True).start()
+        tmp=os.path.join(os.environ.get("TEMP","."),"_lw_editor_preview.wav")
+        self._segment.export(tmp,format="wav")
+        _audio.load(tmp); _audio.play()
+        self.exp_status.config(text="Playing preview...",fg=LIME_DK)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -5944,7 +5121,6 @@ class RecorderPage(ScrollFrame):
     def __init__(self,parent,app):
         super().__init__(parent); self.app=app
         self._recording=False; self._stream=None; self._frames=[]
-        self._frames_lock=threading.Lock()
         self._recorded_data=None; self._recorded_sr=RECORDER_SAMPLE_RATE
         self._vu_after=None; self._wave_after=None
         self._build(self.inner)
@@ -6066,8 +5242,7 @@ class RecorderPage(ScrollFrame):
 
     def _audio_callback(self,indata,frames,time_info,status):
         if self._recording:
-            with self._frames_lock:
-                self._frames.append(indata.copy())
+            self._frames.append(indata.copy())
 
     def _stop_recording(self):
         if not self._recording: return
@@ -6079,10 +5254,8 @@ class RecorderPage(ScrollFrame):
         self.rec_btn.config(text="\u25CF Record",bg=LIME,fg=TEXT)
         if self._vu_after: self.after_cancel(self._vu_after); self._vu_after=None
         if self._wave_after: self.after_cancel(self._wave_after); self._wave_after=None
-        with self._frames_lock:
-            frames_copy=list(self._frames); self._frames.clear()
-        if frames_copy:
-            self._recorded_data=np.concatenate(frames_copy,axis=0)
+        if self._frames:
+            self._recorded_data=np.concatenate(self._frames,axis=0)
             dur=len(self._recorded_data)/RECORDER_SAMPLE_RATE
             self.play_lbl.config(text=f"Recorded {dur:.1f}s  ({RECORDER_SAMPLE_RATE}Hz, {RECORDER_CHANNELS}ch)")
             self.trans_status.config(text="Ready to transcribe",fg=LIME_DK)
@@ -6098,9 +5271,8 @@ class RecorderPage(ScrollFrame):
 
     def _update_vu(self):
         if not self._recording: return
-        with self._frames_lock:
-            chunk=self._frames[-1].copy() if self._frames else None
-        if chunk is not None:
+        if self._frames:
+            chunk=self._frames[-1]
             rms=float(np.sqrt(np.mean(chunk**2)))
             db=max(0,min(1,(20*np.log10(rms+1e-10)+60)/60))
             self._peak_val=max(self._peak_val*0.95,db)
@@ -6132,14 +5304,9 @@ class RecorderPage(ScrollFrame):
             self.play_lbl.config(text="Nothing recorded yet",fg=YELLOW); return
         if not _ensure_loudness():
             self.play_lbl.config(text="soundfile needed for playback",fg=RED); return
-        fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_rec_")
-        os.close(fd)
-        try:
-            sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
-            _audio.load(tmp); _audio.play()
-        finally:
-            try: os.unlink(tmp)
-            except OSError: pass
+        tmp=os.path.join(os.environ.get("TEMP","."),"_lw_rec_preview.wav")
+        sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
+        _audio.load(tmp); _audio.play()
         self.play_lbl.config(text="Playing...",fg=LIME_DK)
 
     def _transcribe(self):
@@ -6154,8 +5321,7 @@ class RecorderPage(ScrollFrame):
             try:
                 if not _ensure_loudness():
                     self.after(0,lambda:self.trans_status.config(text="soundfile required",fg=RED)); return
-                fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_wh_")
-                os.close(fd)
+                tmp=os.path.join(os.environ.get("TEMP","."),"_lw_rec_whisper.wav")
                 sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
                 self.after(0,lambda:self.trans_status.config(text="Transcribing...",fg=YELLOW))
                 model=whisper_mod.load_model(model_size)
@@ -6178,16 +5344,13 @@ class RecorderPage(ScrollFrame):
         path=filedialog.asksaveasfilename(defaultextension=".srt",
             filetypes=[("SRT","*.srt"),("All","*.*")],initialdir=self.app.output_dir)
         if not path: return
-        try:
-            with open(path,"w",encoding="utf-8") as f:
-                for i,seg in enumerate(self._whisper_segments,1):
-                    f.write(f"{i}\n")
-                    f.write(f"{_srt_timestamp(seg['start'])} --> {_srt_timestamp(seg['end'])}\n")
-                    f.write(f"{seg['text'].strip()}\n\n")
-            self.trans_status.config(text=f"SRT saved: {os.path.basename(path)}",fg=LIME_DK)
-            self.app.toast(f"SRT exported: {os.path.basename(path)}")
-        except Exception as e:
-            self.trans_status.config(text=f"Save error: {str(e)[:60]}",fg=RED)
+        with open(path,"w",encoding="utf-8") as f:
+            for i,seg in enumerate(self._whisper_segments,1):
+                f.write(f"{i}\n")
+                f.write(f"{_srt_timestamp(seg['start'])} --> {_srt_timestamp(seg['end'])}\n")
+                f.write(f"{seg['text'].strip()}\n\n")
+        self.trans_status.config(text=f"SRT saved: {os.path.basename(path)}",fg=LIME_DK)
+        self.app.toast(f"SRT exported: {os.path.basename(path)}")
 
     def _save(self):
         if self._recorded_data is None:
@@ -6209,15 +5372,10 @@ class RecorderPage(ScrollFrame):
                         self.after(0,lambda:self.save_status.config(text="pydub required for non-wav",fg=RED)); return
                     if not _ensure_loudness():
                         self.after(0,lambda:self.save_status.config(text="soundfile required",fg=RED)); return
-                    fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_rtmp_")
-                    os.close(fd)
-                    try:
-                        sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
-                        seg=AudioSegment.from_wav(tmp)
-                        seg.export(path,format=fmt)
-                    finally:
-                        try: os.unlink(tmp)
-                        except OSError: pass
+                    tmp=os.path.join(os.environ.get("TEMP","."),"_lw_rec_tmp.wav")
+                    sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
+                    seg=AudioSegment.from_wav(tmp)
+                    seg.export(path,format=fmt)
                 self.after(0,lambda:(self.save_status.config(text=f"Saved: {os.path.basename(path)}",fg=LIME_DK),
                     self.app.toast(f"Recording saved: {os.path.basename(path)}")))
             except Exception as e:
@@ -6588,8 +5746,6 @@ class RemixerPage(ScrollFrame):
         cf=tk.Frame(p,bg=BG); cf.pack(fill="x",padx=SP_LG,pady=SP_SM)
         LimeBtn(cf,"Preview Mix",self._preview).pack(side="left",padx=(0,SP_SM))
         OrangeBtn(cf,"Export Remix",self._export).pack(side="left",padx=(0,SP_SM))
-        ClassicBtn(cf,"MIDI Learn",self._midi_learn).pack(side="left",padx=(0,SP_SM))
-        self._midi_active=False; self._midi_map={}
         self.status_lbl=tk.Label(p,text="Load stems from a Demucs output folder",font=F_BODY,bg=BG,fg=TEXT_DIM)
         self.status_lbl.pack(anchor="w",padx=SP_LG,pady=SP_SM)
         self.prog=ClassicProgress(p); self.prog.pack(fill="x",padx=SP_LG,pady=(0,SP_SM))
@@ -6692,62 +5848,17 @@ class RemixerPage(ScrollFrame):
         threading.Thread(target=_do,daemon=True).start()
 
     def _export(self):
+        mixed=self._mix_stems()
+        if mixed is None: return
         path=filedialog.asksaveasfilename(defaultextension=".wav",filetypes=[("WAV","*.wav"),("MP3","*.mp3"),("FLAC","*.flac")])
         if not path: return
         fmt=os.path.splitext(path)[1].lstrip(".") or "wav"
-        self.status_lbl.config(text="Mixing and exporting...",fg=YELLOW); self.prog["value"]=30
+        self.status_lbl.config(text="Exporting...",fg=YELLOW); self.prog["value"]=60
         def _do():
-            mixed=self._mix_stems()
-            if mixed is None:
-                self.after(0,lambda:self.status_lbl.config(text="Mix failed",fg=RED)); return
-            self.after(0,lambda:self.prog.configure(value=60))
             mixed.export(path,format=fmt)
             self.after(0,lambda:(self.status_lbl.config(text=f"Exported: {os.path.basename(path)}",fg=LIME_DK),
                 self.prog.configure(value=100),self.app.toast(f"Remix exported: {os.path.basename(path)}")))
         threading.Thread(target=_do,daemon=True).start()
-    def _midi_learn(self):
-        """Toggle MIDI learn mode for mapping controllers to stem faders."""
-        try:
-            import mido
-        except ImportError:
-            show_toast(self.app,"Install mido for MIDI: pip install mido python-rtmidi","error"); return
-        if self._midi_active:
-            self._midi_active=False
-            self.status_lbl.config(text="MIDI learn disabled",fg=TEXT_DIM); return
-        self._midi_active=True
-        self.status_lbl.config(text="MIDI Learn active — move a fader, then click a stem volume slider",fg=ORANGE)
-        def _listen():
-            import mido
-            try:
-                ports=mido.get_input_names()
-                if not ports:
-                    self.after(0,lambda:self.status_lbl.config(text="No MIDI devices found",fg=RED))
-                    self._midi_active=False; return
-                with mido.open_input(ports[0]) as port:
-                    self.after(0,lambda:self.status_lbl.config(text=f"Listening on {ports[0]}... Move a control",fg=YELLOW))
-                    while self._midi_active:
-                        for msg in port.iter_pending():
-                            if msg.type=="control_change":
-                                cc=msg.control; val=msg.value
-                                # Map CC to any stem that has focus or the first unassigned
-                                if cc not in self._midi_map:
-                                    stem_names=list(self._stems.keys())
-                                    idx=len(self._midi_map)%len(stem_names) if stem_names else 0
-                                    if idx<len(stem_names):
-                                        self._midi_map[cc]=stem_names[idx]
-                                        sn=stem_names[idx]
-                                        self.after(0,lambda s=sn,c=cc:self.status_lbl.config(
-                                            text=f"CC{c} → {s.title()} volume",fg=LIME_DK))
-                                if cc in self._midi_map:
-                                    target=self._midi_map[cc]
-                                    if target in self._stems:
-                                        vol_pct=val/127.0*150.0
-                                        self.after(0,lambda t=target,v=vol_pct:self._stems[t]["vol"].set(v))
-                        time.sleep(0.01)
-            except Exception as e:
-                self.after(0,lambda:self.status_lbl.config(text=f"MIDI error: {str(e)[:50]}",fg=RED))
-                self._midi_active=False
-        threading.Thread(target=_listen,daemon=True).start()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -6870,7 +5981,7 @@ class BatchProcessorPage(ScrollFrame):
                 if self._cancel:
                     self.after(0,lambda:(self.status_lbl.config(text="Cancelled",fg=YELLOW),self.prog.configure(value=0)))
                     return
-                self.after(0,lambda ii=i,_fp=fp:(self.status_lbl.config(text=f"Processing {ii+1}/{total}: {os.path.basename(_fp)}",fg=YELLOW),
+                self.after(0,lambda ii=i:(self.status_lbl.config(text=f"Processing {ii+1}/{total}: {os.path.basename(fp)}",fg=YELLOW),
                     self.prog.configure(value=int(ii/total*100))))
                 try:
                     seg=AudioSegment.from_file(fp)
@@ -6901,79 +6012,6 @@ class BatchProcessorPage(ScrollFrame):
                 self.prog.configure(value=100),
                 self.app.toast(f"Batch: {done}/{total} files processed")))
         threading.Thread(target=_do,daemon=True).start()
-
-
-# ── Settings Page ─────────────────────────────────────────────────────────────
-
-class SettingsPage(ScrollFrame):
-    """Application settings — theme, output directory, clipboard watch, proxy."""
-    def __init__(self,parent,app):
-        super().__init__(parent); self.app=app
-        self._build(self.inner)
-    def _build(self,p):
-        # ── Appearance ──
-        ag=GroupBox(p,"Appearance"); ag.pack(fill="x",padx=10,pady=(10,6))
-        tr=tk.Frame(ag,bg=BG); tr.pack(fill="x",pady=(0,4))
-        tk.Label(tr,text="Theme:",font=F_BOLD,bg=BG,fg=TEXT).pack(side="left")
-        _theme_display=["LiveWire","Classic Light","Classic Dark","Modern Dark",
-            "Synthwave","Dracula","Catppuccin","Tokyo Night","Spotify",
-            "LimeWire Classic","Nord","Gruvbox","High Contrast"]
-        self._theme_var=tk.StringVar()
-        self._theme_combo=ttk.Combobox(tr,textvariable=self._theme_var,
-            values=_theme_display,state="readonly",width=18,font=F_BODY)
-        self._theme_combo.pack(side="left",padx=(8,0))
-        self._theme_combo.set(self.app._theme_key_map.get(
-            self.app.settings.get("theme","livewire"),"LiveWire"))
-        self._theme_combo.bind("<<ComboboxSelected>>",self.app._on_theme_select)
-        tk.Label(ag,text="You can also cycle themes via the View menu or load a community theme JSON.",
-                 font=F_SMALL,bg=BG,fg=TEXT_DIM,anchor="w").pack(fill="x")
-        # ── General ──
-        gg=GroupBox(p,"General"); gg.pack(fill="x",padx=10,pady=(0,6))
-        # Output directory
-        odr=tk.Frame(gg,bg=BG); odr.pack(fill="x",pady=(0,4))
-        tk.Label(odr,text="Download Folder:",font=F_BOLD,bg=BG,fg=TEXT).pack(side="left")
-        self._out_var=tk.StringVar(value=self.app.output_dir)
-        ClassicEntry(odr,self._out_var,width=40).pack(side="left",padx=(8,4),fill="x",expand=True,ipady=2)
-        ClassicBtn(odr,"Browse",self._browse_out).pack(side="left")
-        # Clipboard watch
-        cwr=tk.Frame(gg,bg=BG); cwr.pack(fill="x",pady=(0,4))
-        self._clip_var=tk.BooleanVar(value=self.app.settings.get("clipboard_watch",True))
-        ttk.Checkbutton(cwr,text="Auto-detect URLs from clipboard",variable=self._clip_var,
-                        command=self._toggle_clip).pack(side="left")
-        # Proxy
-        pxr=tk.Frame(gg,bg=BG); pxr.pack(fill="x",pady=(0,4))
-        tk.Label(pxr,text="Proxy:",font=F_BOLD,bg=BG,fg=TEXT).pack(side="left")
-        self._proxy_var=tk.StringVar(value=self.app.settings.get("proxy",""))
-        ClassicEntry(pxr,self._proxy_var,width=30).pack(side="left",padx=(8,4),ipady=2)
-        ClassicBtn(pxr,"Apply",self._apply_proxy).pack(side="left")
-        # Rate limit
-        rlr=tk.Frame(gg,bg=BG); rlr.pack(fill="x",pady=(0,4))
-        tk.Label(rlr,text="Rate Limit:",font=F_BOLD,bg=BG,fg=TEXT).pack(side="left")
-        self._rate_var=tk.StringVar(value=self.app.settings.get("rate_limit",""))
-        ClassicEntry(rlr,self._rate_var,width=15).pack(side="left",padx=(8,4),ipady=2)
-        tk.Label(rlr,text="(e.g. 5M for 5 MB/s, empty = unlimited)",font=F_SMALL,bg=BG,fg=TEXT_DIM).pack(side="left")
-        # Discord RPC
-        drr=tk.Frame(gg,bg=BG); drr.pack(fill="x",pady=(0,4))
-        self._rpc_var=tk.BooleanVar(value=self.app.settings.get("discord_rpc",True))
-        ttk.Checkbutton(drr,text="Enable Discord Rich Presence",variable=self._rpc_var,
-                        command=self._toggle_rpc).pack(side="left")
-        # ── About ──
-        ab=GroupBox(p,"About"); ab.pack(fill="x",padx=10,pady=(0,6))
-        tk.Label(ab,text="LimeWire-DL v8.0 Studio Edition",font=F_BOLD,bg=BG,fg=LIME_DK).pack(anchor="w")
-        tk.Label(ab,text="A modern music toolkit built with Python & tkinter.",font=F_SMALL,bg=BG,fg=TEXT_DIM).pack(anchor="w")
-    def _browse_out(self):
-        d=filedialog.askdirectory(initialdir=self.app.output_dir)
-        if d:
-            self.app.output_dir=d; self._out_var.set(d)
-            self.app.settings["output_dir"]=d; self.app._save_settings()
-            show_toast(self.app,f"Download folder: {d}","info")
-    def _toggle_clip(self):
-        self.app.settings["clipboard_watch"]=self._clip_var.get(); self.app._save_settings()
-    def _apply_proxy(self):
-        self.app.settings["proxy"]=self._proxy_var.get().strip(); self.app._save_settings()
-        show_toast(self.app,"Proxy updated","info")
-    def _toggle_rpc(self):
-        self.app.settings["discord_rpc"]=self._rpc_var.get(); self.app._save_settings()
 
 
 # ── Cover Art Page ────────────────────────────────────────────────────────────
@@ -7217,58 +6255,6 @@ class CoverArtPage(ScrollFrame):
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 if __name__=="__main__":
-    if "--screenshots" in sys.argv:
-        from PIL import ImageGrab
-        app=App()
-        # Anonymize: clear personal data before capturing
-        app.history=[]
-        app.schedule=[]
-        _anon_dir=os.path.join("C:\\","LimeWire","Downloads")
-        app.output_dir=_anon_dir
-        for page in app.pages.values():
-            if hasattr(page,"file_var"): page.file_var.set("")
-            if hasattr(page,"url_var"): page.url_var.set("")
-            for attr in ("folder_var","folder","pl_folder","out_f","sc_f","_out_var"):
-                if hasattr(page,attr): getattr(page,attr).set(_anon_dir)
-            if hasattr(page,"out_var"): page.out_var.set(os.path.join(_anon_dir,"Stems"))
-            if hasattr(page,"out_dir_var"): page.out_dir_var.set(os.path.join(_anon_dir,"Batch"))
-        # Force LiveWire theme for screenshots
-        apply_theme("livewire")
-        app.settings["theme"]="livewire"
-        sp=app.pages.get("settings")
-        if sp and hasattr(sp,"_theme_combo"):
-            sp._theme_combo.set("LiveWire")
-        pp=app.pages.get("player")
-        if pp:
-            pp._playlist=[]; pp._playlist_set=set()
-            try: pp.plb.delete(0,"end")
-            except Exception: pass
-        hp=app.pages.get("history")
-        if hp:
-            try: hp.tree.delete(*hp.tree.get_children())
-            except Exception: pass
-        app.update_idletasks(); app.update()
-        time.sleep(1.5)
-        _tabs=[("search","01_search"),("download","02_download"),("playlist","03_playlist"),
-               ("converter","04_converter"),("player","05_player"),("analyze","06_analyze"),
-               ("stems","07_stems"),("effects","08_effects"),("discovery","09_discovery"),
-               ("samples","10_samples"),("editor","11_editor"),("recorder","12_recorder"),
-               ("spectrogram","13_spectrogram"),("pitchtime","14_pitchtime"),("remixer","15_remixer"),
-               ("batch","16_batch"),("schedule","17_schedule"),("history","18_history"),
-               ("coverart","19_coverart"),("settings","20_settings")]
-        ss_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)),"screenshots")
-        os.makedirs(ss_dir,exist_ok=True)
-        for key,fname in _tabs:
-            app._show_tab(key); app.update_idletasks(); app.update()
-            time.sleep(0.4)
-            x,y=app.winfo_rootx(),app.winfo_rooty()
-            w,h=app.winfo_width(),app.winfo_height()
-            img=ImageGrab.grab(bbox=(x,y,x+w,y+h))
-            out=os.path.join(ss_dir,f"{fname}.png")
-            img.save(out)
-            print(f"  Saved {fname}.png ({w}x{h})")
-        print(f"Done — {len(_tabs)} screenshots in {ss_dir}")
-        app.destroy(); sys.exit(0)
     try: app=App(); app.mainloop()
     except Exception as e:
         import traceback
