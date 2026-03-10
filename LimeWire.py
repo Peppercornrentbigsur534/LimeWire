@@ -18,7 +18,7 @@ Requirements: pip install yt-dlp pillow requests mutagen pyglet
               winget install ffmpeg
 """
 
-import os, sys, json, threading, datetime, time, urllib.request, subprocess, re, webbrowser, asyncio, struct, wave, math, shutil, logging
+import os, sys, json, threading, datetime, time, urllib.request, subprocess, re, webbrowser, asyncio, struct, wave, math, shutil, logging, tempfile
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -590,7 +590,7 @@ ANALYSIS_CACHE_FILE=_migrate_config("analysis_cache")
 SESSION_FILE=_migrate_config("session")
 RECENT_FILES_FILE=_migrate_config("recent_files")
 SUPPRESS=("No supported JavaScript","impersonat","Only deno","js-runtimes","Remote components")
-ACOUSTID_KEY=os.environ.get("ACOUSTID_API_KEY","vNReaS8VLo")
+ACOUSTID_KEY=os.environ.get("ACOUSTID_API_KEY","")
 YDL_BASE={"remote_components":["ejs:github"],"socket_timeout":NETWORK_TIMEOUT}
 def ydl_opts(**kw): return {**YDL_BASE, **kw}
 
@@ -610,7 +610,10 @@ def save_json(p,d):
         tmp=p+".tmp"
         with open(tmp,"w") as f: json.dump(d,f,indent=2)
         os.replace(tmp,p)  # atomic on same filesystem
-    except Exception: pass
+    except Exception as e:
+        try: os.unlink(p+".tmp")
+        except OSError: pass
+        import logging; logging.warning(f"save_json failed for {p}: {e}")
 def fmt_duration(s):
     try: return str(datetime.timedelta(seconds=int(s)))
     except Exception: return "--:--"
@@ -624,9 +627,11 @@ _BLOCKED_SCHEMES = frozenset({"file","ftp","ftps","rtsp","rtmp","smb","ssh","tel
 def is_url(t):
     t=t.strip()
     if not t or len(t)>MAX_URL_LENGTH: return False
-    # Block dangerous URI schemes (file://, ftp://, rtsp://, etc.)
-    scheme=t.split("://",1)[0].lower() if "://" in t else ""
-    if scheme in _BLOCKED_SCHEMES: return False
+    # Block dangerous URI schemes — only allow http/https
+    try:
+        parsed=urllib.parse.urlparse(t)
+        if parsed.scheme and parsed.scheme.lower() not in ("http","https",""): return False
+    except Exception: return False
     return any(p.match(t) for p in URL_PATTERNS)
 _WIN_RESERVED = frozenset({"CON","PRN","AUX","NUL"} |
     {f"COM{i}" for i in range(1,10)} | {f"LPT{i}" for i in range(1,10)})
@@ -716,13 +721,17 @@ class PluginManager:
         """Scan plugins directory and load all .py plugin files."""
         self._plugins={}; self._errors=[]
         os.makedirs(PLUGINS_DIR,exist_ok=True)
-        for fn in os.listdir(PLUGINS_DIR):
-            if not fn.endswith(".py") or fn.startswith("_"): continue
+        plugin_files=[fn for fn in os.listdir(PLUGINS_DIR)
+                      if fn.endswith(".py") and not fn.startswith("_")]
+        if not plugin_files: return
+        _log.info(f"Loading {len(plugin_files)} plugin(s) from {PLUGINS_DIR}")
+        for fn in plugin_files:
             path=os.path.join(PLUGINS_DIR,fn)
             try:
                 import importlib.util
                 spec=importlib.util.spec_from_file_location(fn[:-3],path)
                 mod=importlib.util.module_from_spec(spec)
+                _log.info(f"[PLUGIN] Loading: {path} (review before use)")
                 spec.loader.exec_module(mod)
                 # Find all PluginBase subclasses in the module
                 for attr_name in dir(mod):
@@ -911,11 +920,13 @@ def _write_crate_manual(filepath,crate_name="LimeWire"):
     serato_path=rel_path.lstrip(os.sep).replace("\\","/")
     if serato_path in existing: return True,"Already in crate"
     existing.append(serato_path)
-    with open(crate_path,"wb") as f:
+    tmp_path=crate_path+".tmp"
+    with open(tmp_path,"wb") as f:
         _write_crate_tag(f,"vrsn","1.0/Serato ScratchLive Crate")
         for track in existing:
             track_data=_encode_crate_str("ptrk",track)
             _write_crate_tag_raw(f,"otrk",track_data)
+    os.replace(tmp_path,crate_path)
     return True,None
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2296,16 +2307,18 @@ class App(tk.Tk):
                 pp.plb.insert("end",os.path.basename(path))
             self._show_tab("player")
     def _build_menubar(self):
-        mb=tk.Menu(self,font=F_BODY,bg=BG)
-        fm=tk.Menu(mb,tearoff=0,font=F_BODY)
+        _mc=dict(bg=SURFACE_2,fg=TEXT,activebackground=LIME,activeforeground=BG_DARK,
+                 disabledforeground=TEXT_DIM,font=F_BODY)
+        mb=tk.Menu(self,**_mc)
+        fm=tk.Menu(mb,tearoff=0,**_mc)
         fm.add_command(label="Open Downloads Folder",command=self._open_dl_folder)
         # Recent Files submenu
-        self._recent_menu=tk.Menu(fm,tearoff=0,font=F_BODY)
+        self._recent_menu=tk.Menu(fm,tearoff=0,**_mc)
         fm.add_cascade(label="Recent Files",menu=self._recent_menu)
         self._refresh_recent_menu()
         fm.add_separator(); fm.add_command(label="Exit",command=self.destroy)
         mb.add_cascade(label="File",menu=fm)
-        tm=tk.Menu(mb,tearoff=0,font=F_BODY)
+        tm=tk.Menu(mb,tearoff=0,**_mc)
         tm.add_command(label="Clear History",command=lambda:(self.history.clear(),save_json(HISTORY_FILE,[])) if messagebox.askyesno("Clear","Clear?") else None)
         tm.add_separator()
         tm.add_command(label="Cycle Theme (Light/Dark/Modern)",command=self._toggle_dark_mode)
@@ -2318,7 +2331,7 @@ class App(tk.Tk):
         tm.add_command(label="Open Plugins Folder",command=lambda:open_folder(PLUGINS_DIR))
         tm.add_separator()
         # Language submenu
-        lm=tk.Menu(tm,tearoff=0,font=F_BODY)
+        lm=tk.Menu(tm,tearoff=0,**_mc)
         lang_names={"en":"English","es":"Español","fr":"Français","de":"Deutsch","ja":"日本語","pt":"Português"}
         for code in SUPPORTED_LANGUAGES:
             lm.add_command(label=lang_names.get(code,code),
@@ -2328,7 +2341,7 @@ class App(tk.Tk):
         tm.add_command(label="Load Community Theme",command=self._load_community_theme)
         tm.add_command(label="Set FL Studio Path",command=self._set_fl_path)
         mb.add_cascade(label="Tools",menu=tm)
-        hm=tk.Menu(mb,tearoff=0,font=F_BODY)
+        hm=tk.Menu(mb,tearoff=0,**_mc)
         caps = []
         if HAS_LIBROSA: caps.append("BPM/Key")
         if HAS_LOUDNESS: caps.append("LUFS")
@@ -2406,27 +2419,29 @@ class App(tk.Tk):
                 nxt=bright if cur==SUCCESS else SUCCESS
                 bar.itemconfig(dot[0],fill=nxt)
         except Exception: pass
-        self.after(STATUS_PULSE_MS,self._pulse_status)
+        try:
+            if self.winfo_exists(): self.after(STATUS_PULSE_MS,self._pulse_status)
+        except Exception: pass
 
     def _build_toolbar(self):
         tk.Frame(self,bg=DIVIDER,height=1).pack(fill="x")
         tb=tk.Frame(self,bg=TOOLBAR,height=44); tb.pack(fill="x"); tb.pack_propagate(False)
         self._toolbar=tb
         self._tb_btns={}
-        items=[("search","\u2315","Search"),("download","\u2913","Batch"),
-               ("playlist","\u2630","Playlist"),("converter","\u21C4","Convert"),
-               ("player","\u25B6","Player"),("analyze","\u2261","Analyze"),
-               ("stems","\u2632","Stems"),("effects","\u2726","Effects"),
-               ("discovery","\u25CE","Library"),("samples","\u2B22","Samples"),
-               ("editor","\u2702","Editor"),("recorder","\u25CF","Record"),
-               ("spectrogram","\u2248","Spectro"),("pitchtime","\u266B","Pitch"),
-               ("remixer","\u2725","Remix"),("batch","\u2699","Batch"),
-               ("schedule","\u25F7","Schedule"),("history","\u21BA","History"),
-               ("coverart","\u25A3","Cover")]
+        items=[("search","\U0001F50D","Search"),("download","\U0001F4E5","Batch"),
+               ("playlist","\U0001F4CB","Playlist"),("converter","\U0001F504","Convert"),
+               ("player","\U0001F3B5","Player"),("analyze","\U0001F4CA","Analyze"),
+               ("stems","\U0001F39A","Stems"),("effects","\u2728","Effects"),
+               ("discovery","\U0001F30D","Library"),("samples","\U0001F3B6","Samples"),
+               ("editor","\u2702","Editor"),("recorder","\U0001F3A4","Record"),
+               ("spectrogram","\U0001F308","Spectro"),("pitchtime","\U0001F3B9","Pitch"),
+               ("remixer","\U0001F3A7","Remix"),("batch","\u2699","Batch"),
+               ("schedule","\u23F0","Schedule"),("history","\U0001F4DC","History"),
+               ("coverart","\U0001F5BC","Cover")]
         for name,icon,label in items:
             bf=tk.Frame(tb,bg=TOOLBAR,cursor="hand2")
             bf.pack(side="left",padx=2,pady=(3,0))
-            il=tk.Label(bf,text=icon,font=("Segoe UI Symbol",13),bg=TOOLBAR,fg=TEXT_DIM)
+            il=tk.Label(bf,text=icon,font=("Segoe UI",11),bg=TOOLBAR,fg=TEXT_DIM)
             il.pack(side="top",pady=(0,0))
             nl=tk.Label(bf,text=label,font=F_TAB,bg=TOOLBAR,fg=TEXT_DIM)
             nl.pack(side="top")
@@ -2607,6 +2622,10 @@ class App(tk.Tk):
                     old_bg=widget.cget("bg").lower()
                     new_bg=_remap(old_bg)
                     widget.configure(bg=new_bg if new_bg else BG)
+            elif wtype=="Menu":
+                try: widget.configure(bg=SURFACE_2,fg=TEXT,activebackground=LIME,activeforeground=BG_DARK,
+                                      disabledforeground=TEXT_DIM)
+                except Exception: pass
             elif wtype=="Toplevel":
                 widget.configure(bg=BG)
         except Exception: pass
@@ -2632,7 +2651,7 @@ class App(tk.Tk):
         f=filedialog.askopenfilename(filetypes=[("Theme JSON","*.json"),("All","*.*")],title="Load Community Theme")
         if not f: return
         try:
-            data=load_json(f)
+            data=load_json(f,{})
             if not isinstance(data,dict) or "BG" not in data:
                 show_toast(self,"Invalid theme file — must have BG, TEXT, LIME, etc. keys","error"); return
             # Register theme with a custom name
@@ -2695,7 +2714,7 @@ class App(tk.Tk):
                           ("schedule",SCHEDULE_FILE),("analysis_cache",ANALYSIS_CACHE_FILE)]:
             src=os.path.join(sync_dir,f"limewire_{name}.json")
             if os.path.exists(src):
-                data=load_json(src)
+                data=load_json(src,{})
                 if data: save_json(dest,data); imported+=1
         if imported:
             self.settings=load_json(SETTINGS_FILE,self.settings)
@@ -2731,6 +2750,9 @@ class App(tk.Tk):
         except Exception: return None
     def _start_clipboard_watch(self):
         def _poll():
+            try:
+                if not self.winfo_exists(): return
+            except Exception: return
             if self.settings.get("clipboard_watch",True):
                 try:
                     clip=self.clipboard_get().strip()
@@ -4318,7 +4340,9 @@ class PlayerPage(ScrollFrame):
                 elif self._dur>0 and pos>=self._dur-1: self._next()
             elif self._playing and not _audio.get_busy(): self._next()
         except Exception: pass
-        self.after(PLAYER_UPDATE_MS,self._upd_pos)
+        try:
+            if self.winfo_exists(): self.after(PLAYER_UPDATE_MS,self._upd_pos)
+        except Exception: pass
     def _analyze_cur(self):
         if self._cur>=0 and self._cur<len(self._playlist):
             ap=self.app.pages.get("analyze")
@@ -4390,14 +4414,18 @@ class PlayerPage(ScrollFrame):
     def _load_m3u(self):
         path=filedialog.askopenfilename(filetypes=[("M3U Playlist","*.m3u"),("All","*.*")])
         if not path: return
-        with open(path,"r",encoding="utf-8") as f:
-            for line in f:
-                line=line.strip()
-                if line and not line.startswith("#") and os.path.exists(line):
-                    if line not in self._playlist_set:
-                        self._playlist.append(line); self._playlist_set.add(line)
-                        self.plb.insert("end",os.path.basename(line))
-        self.app.toast(f"Loaded playlist: {len(self._playlist)} tracks")
+        _AUDIO_EXTS=frozenset({".mp3",".wav",".flac",".ogg",".m4a",".aac",".opus",".wma",".aiff"})
+        try:
+            with open(path,"r",encoding="utf-8") as f:
+                for line in f:
+                    line=line.strip()
+                    if line and not line.startswith("#") and os.path.splitext(line)[1].lower() in _AUDIO_EXTS and os.path.exists(line):
+                        if line not in self._playlist_set:
+                            self._playlist.append(line); self._playlist_set.add(line)
+                            self.plb.insert("end",os.path.basename(line))
+            self.app.toast(f"Loaded playlist: {len(self._playlist)} tracks")
+        except Exception as e:
+            self.app.toast(f"Failed to load M3U: {str(e)[:50]}","error")
     def _share_playlist_json(self):
         """Export collaborative playlist as shareable JSON with metadata."""
         if not self._playlist: return
@@ -4439,7 +4467,8 @@ class PlayerPage(ScrollFrame):
             added=0
             for t in tracks:
                 fp=t.get("path","")
-                if fp and os.path.exists(fp) and fp not in self._playlist_set:
+                _AUDIO_EXTS=frozenset({".mp3",".wav",".flac",".ogg",".m4a",".aac",".opus",".wma",".aiff"})
+                if fp and os.path.splitext(fp)[1].lower() in _AUDIO_EXTS and os.path.exists(fp) and fp not in self._playlist_set:
                     self._playlist.append(fp); self._playlist_set.add(fp)
                     name=t.get("title") or os.path.basename(fp)
                     bpm=t.get("bpm",""); key=t.get("key","")
@@ -4609,7 +4638,7 @@ class HistoryPage(ScrollFrame):
                 new_name=new_name.replace("{bpm}",bpm or "0").replace("{key}",key or "?")
                 new_name=new_name.replace("{date}",date).replace("{n}",str(i+1)).replace("{ext}",ext)
                 # Sanitize
-                new_name=re.sub(r'[/<>:"|?*]','_',new_name)
+                new_name=sanitize_filename(new_name)
                 old=os.path.basename(fp)
                 preview_lb.insert("end",f"{old[:25]:25s} \u2192 {new_name}")
         pat_var.trace_add("write",_preview); _preview()
@@ -4634,8 +4663,11 @@ class HistoryPage(ScrollFrame):
                 new_name=pat.replace("{title}",title).replace("{artist}",artist or "Unknown")
                 new_name=new_name.replace("{bpm}",bpm or "0").replace("{key}",key or "?")
                 new_name=new_name.replace("{date}",date).replace("{n}",str(i+1)).replace("{ext}",ext)
-                new_name=re.sub(r'[/<>:"|?*]','_',new_name)
-                new_path=os.path.join(os.path.dirname(fp),new_name)
+                new_name=sanitize_filename(new_name)
+                parent_dir=os.path.dirname(os.path.abspath(fp))
+                new_path=os.path.join(parent_dir,new_name)
+                # Prevent path traversal
+                if os.path.dirname(os.path.abspath(new_path))!=parent_dir: continue
                 if new_path!=fp and not os.path.exists(new_path):
                     try: os.rename(fp,new_path); entry["filepath"]=new_path; renamed+=1
                     except Exception: pass
@@ -4837,7 +4869,7 @@ class EffectsPage(ScrollFrame):
                 p=vst.parameters[param_name]
                 params[param_name]=getattr(p,"default_value",0.5)
             self._push_undo()
-            self._chain.append({"name":f"VST:{name}","params":params,"vst_path":f})
+            self._chain.append({"name":f"VST:{name}","params":params,"vst_path":f,"user_loaded":True})
             self._render_chain()
             show_toast(self.app,f"Loaded VST: {name}","success")
         except Exception as e:
@@ -4858,12 +4890,16 @@ class EffectsPage(ScrollFrame):
         else:
             show_toast(self.app,f"Plugins reloaded: {len(_plugin_manager.list_plugins())} loaded","success")
 
+    _ALLOWED_EFFECTS=frozenset({"Reverb","Compressor","Delay","Distortion","Gain",
+        "HighpassFilter","LowpassFilter","PeakFilter","Phaser","Chorus","Limiter",
+        "NoiseGate","Clipping","GSMFullRateCompressor","MP3Compressor","LadderFilter",
+        "IIRFilter","Bitcrush","HighShelfFilter","LowShelfFilter","Convolution","Resample"})
     def _build_board(self):
         """Build pedalboard.Pedalboard from current chain."""
         effects=[]
         for fx in self._chain:
-            # Handle VST plugins
-            if fx["name"].startswith("VST:") and fx.get("vst_path"):
+            # Handle VST plugins — only from user-initiated load, not from presets
+            if fx["name"].startswith("VST:") and fx.get("vst_path") and fx.get("user_loaded"):
                 try:
                     vst=pedalboard.load_plugin(fx["vst_path"])
                     for k,v in fx.get("params",{}).items():
@@ -4873,6 +4909,8 @@ class EffectsPage(ScrollFrame):
                 except Exception: continue
             # Handle custom plugins (processed separately in _apply)
             if fx["name"].startswith("\U0001F9E9 "): continue
+            if fx["name"] not in self._ALLOWED_EFFECTS:
+                self.fx_status.config(text=f"Blocked unknown effect: {fx['name']}",fg=RED); continue
             cls=getattr(pedalboard,fx["name"],None)
             if cls:
                 # Map param names
@@ -4926,10 +4964,15 @@ class EffectsPage(ScrollFrame):
                 with pedalboard.io.AudioFile(path) as f:
                     sr=f.samplerate; chunk=f.read(min(sr*5,f.frames))
                 processed=board(chunk,sample_rate=sr)
-                preview_path=os.path.join(os.environ.get("TEMP","."),"_lw_fx_preview.wav")
-                with pedalboard.io.AudioFile(preview_path,"w",sr,processed.shape[0]) as f:
-                    f.write(processed)
-                _audio.load(preview_path); _audio.play()
+                fd,preview_path=tempfile.mkstemp(suffix=".wav",prefix="_lw_fx_")
+                os.close(fd)
+                try:
+                    with pedalboard.io.AudioFile(preview_path,"w",sr,processed.shape[0]) as f:
+                        f.write(processed)
+                    _audio.load(preview_path); _audio.play()
+                finally:
+                    try: os.unlink(preview_path)
+                    except OSError: pass
                 self.after(0,lambda:self.fx_status.config(text="Playing 5s preview...",fg=LIME_DK))
             except Exception as e:
                 self.after(0,lambda:self.fx_status.config(text=f"Preview error: {str(e)[:80]}",fg=RED))
@@ -5022,8 +5065,11 @@ class DiscoveryPage(ScrollFrame):
         if not files:
             self.after(0,lambda:self.scan_status.config(text="No audio files found.",fg=RED)); return
         self.after(0,lambda n=len(files):self.scan_status.config(text=f"Found {n} files, analyzing...",fg=YELLOW))
-        # Load analysis cache
+        # Load analysis cache (evict if too large)
         cache=load_json(ANALYSIS_CACHE_FILE,{})
+        MAX_CACHE=5000
+        if len(cache)>MAX_CACHE:
+            cache=dict(list(cache.items())[-MAX_CACHE:])
         self._library={}; analyzed=0; total=len(files)
         # Split into cached and uncached
         uncached=[]
@@ -5149,14 +5195,17 @@ class DiscoveryPage(ScrollFrame):
         if not self._library: show_toast(self.app,"Scan a library first","warning"); return
         path=filedialog.asksaveasfilename(defaultextension=".csv",filetypes=[("CSV","*.csv")],initialfile="library_analysis.csv")
         if not path: return
-        import csv
-        with open(path,"w",newline="",encoding="utf-8") as f:
-            w=csv.writer(f)
-            w.writerow(["File","Path","BPM","Key","Camelot"])
-            for fp,info in sorted(self._library.items(),key=lambda x:x[1].get("bpm") or 0):
-                bpm=f"{info['bpm']:.1f}" if info.get("bpm") else ""
-                w.writerow([info.get("file",""),fp,bpm,info.get("key",""),info.get("camelot","")])
-        show_toast(self.app,f"Exported {len(self._library)} tracks to CSV","success")
+        try:
+            import csv
+            with open(path,"w",newline="",encoding="utf-8") as f:
+                w=csv.writer(f)
+                w.writerow(["File","Path","BPM","Key","Camelot"])
+                for fp,info in sorted(self._library.items(),key=lambda x:x[1].get("bpm") or 0):
+                    bpm=f"{info['bpm']:.1f}" if info.get("bpm") else ""
+                    w.writerow([info.get("file",""),fp,bpm,info.get("key",""),info.get("camelot","")])
+            show_toast(self.app,f"Exported {len(self._library)} tracks to CSV","success")
+        except Exception as e:
+            show_toast(self.app,f"CSV export failed: {str(e)[:50]}","error")
 
     def _send_to_player(self):
         """Send generated playlist to Player tab."""
@@ -5342,10 +5391,15 @@ class SamplesPage(ScrollFrame):
         self.search_status.config(text=f"Loading preview: {r.get('name','')}...",fg=YELLOW)
         def _do():
             try:
-                tmp=os.path.join(os.environ.get("TEMP","."),"_lw_sample_preview.mp3")
-                resp=requests.get(preview_url,timeout=15)
-                with open(tmp,"wb") as f: f.write(resp.content)
-                _audio.load(tmp); _audio.play()
+                fd,tmp=tempfile.mkstemp(suffix=".mp3",prefix="_lw_samp_")
+                os.close(fd)
+                try:
+                    resp=requests.get(preview_url,timeout=15)
+                    with open(tmp,"wb") as f: f.write(resp.content)
+                    _audio.load(tmp); _audio.play()
+                finally:
+                    try: os.unlink(tmp)
+                    except OSError: pass
                 self.after(0,lambda:self.search_status.config(text=f"Playing: {r.get('name','')}",fg=LIME_DK))
             except Exception as e:
                 self.after(0,lambda:self.search_status.config(text=f"Preview error: {str(e)[:60]}",fg=RED))
@@ -5377,7 +5431,11 @@ class SamplesPage(ScrollFrame):
 
     def _open_web(self):
         r=self._get_selected()
-        if r and r.get("url"): webbrowser.open(r["url"])
+        if not r: return
+        url=r.get("url","")
+        parsed=urllib.parse.urlparse(url)
+        if parsed.scheme in ("http","https") and parsed.netloc:
+            webbrowser.open(url)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -5834,10 +5892,20 @@ class EditorPage(ScrollFrame):
 
     def _play_preview(self):
         if not self._segment: return
-        tmp=os.path.join(os.environ.get("TEMP","."),"_lw_editor_preview.wav")
-        self._segment.export(tmp,format="wav")
-        _audio.load(tmp); _audio.play()
-        self.exp_status.config(text="Playing preview...",fg=LIME_DK)
+        seg=self._segment
+        def _do_preview():
+            fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_edit_")
+            os.close(fd)
+            try:
+                seg.export(tmp,format="wav")
+                _audio.load(tmp); _audio.play()
+                self.after(0,lambda:self.exp_status.config(text="Playing preview...",fg=LIME_DK))
+            except Exception as e:
+                self.after(0,lambda:self.exp_status.config(text=f"Preview error: {str(e)[:60]}",fg=RED))
+            finally:
+                try: os.unlink(tmp)
+                except OSError: pass
+        threading.Thread(target=_do_preview,daemon=True).start()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -5849,6 +5917,7 @@ class RecorderPage(ScrollFrame):
     def __init__(self,parent,app):
         super().__init__(parent); self.app=app
         self._recording=False; self._stream=None; self._frames=[]
+        self._frames_lock=threading.Lock()
         self._recorded_data=None; self._recorded_sr=RECORDER_SAMPLE_RATE
         self._vu_after=None; self._wave_after=None
         self._build(self.inner)
@@ -5970,7 +6039,8 @@ class RecorderPage(ScrollFrame):
 
     def _audio_callback(self,indata,frames,time_info,status):
         if self._recording:
-            self._frames.append(indata.copy())
+            with self._frames_lock:
+                self._frames.append(indata.copy())
 
     def _stop_recording(self):
         if not self._recording: return
@@ -5982,8 +6052,10 @@ class RecorderPage(ScrollFrame):
         self.rec_btn.config(text="\u25CF Record",bg=LIME,fg=TEXT)
         if self._vu_after: self.after_cancel(self._vu_after); self._vu_after=None
         if self._wave_after: self.after_cancel(self._wave_after); self._wave_after=None
-        if self._frames:
-            self._recorded_data=np.concatenate(self._frames,axis=0)
+        with self._frames_lock:
+            frames_copy=list(self._frames); self._frames.clear()
+        if frames_copy:
+            self._recorded_data=np.concatenate(frames_copy,axis=0)
             dur=len(self._recorded_data)/RECORDER_SAMPLE_RATE
             self.play_lbl.config(text=f"Recorded {dur:.1f}s  ({RECORDER_SAMPLE_RATE}Hz, {RECORDER_CHANNELS}ch)")
             self.trans_status.config(text="Ready to transcribe",fg=LIME_DK)
@@ -5999,8 +6071,9 @@ class RecorderPage(ScrollFrame):
 
     def _update_vu(self):
         if not self._recording: return
-        if self._frames:
-            chunk=self._frames[-1]
+        with self._frames_lock:
+            chunk=self._frames[-1].copy() if self._frames else None
+        if chunk is not None:
             rms=float(np.sqrt(np.mean(chunk**2)))
             db=max(0,min(1,(20*np.log10(rms+1e-10)+60)/60))
             self._peak_val=max(self._peak_val*0.95,db)
@@ -6032,9 +6105,14 @@ class RecorderPage(ScrollFrame):
             self.play_lbl.config(text="Nothing recorded yet",fg=YELLOW); return
         if not _ensure_loudness():
             self.play_lbl.config(text="soundfile needed for playback",fg=RED); return
-        tmp=os.path.join(os.environ.get("TEMP","."),"_lw_rec_preview.wav")
-        sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
-        _audio.load(tmp); _audio.play()
+        fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_rec_")
+        os.close(fd)
+        try:
+            sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
+            _audio.load(tmp); _audio.play()
+        finally:
+            try: os.unlink(tmp)
+            except OSError: pass
         self.play_lbl.config(text="Playing...",fg=LIME_DK)
 
     def _transcribe(self):
@@ -6049,7 +6127,8 @@ class RecorderPage(ScrollFrame):
             try:
                 if not _ensure_loudness():
                     self.after(0,lambda:self.trans_status.config(text="soundfile required",fg=RED)); return
-                tmp=os.path.join(os.environ.get("TEMP","."),"_lw_rec_whisper.wav")
+                fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_wh_")
+                os.close(fd)
                 sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
                 self.after(0,lambda:self.trans_status.config(text="Transcribing...",fg=YELLOW))
                 model=whisper_mod.load_model(model_size)
@@ -6072,13 +6151,16 @@ class RecorderPage(ScrollFrame):
         path=filedialog.asksaveasfilename(defaultextension=".srt",
             filetypes=[("SRT","*.srt"),("All","*.*")],initialdir=self.app.output_dir)
         if not path: return
-        with open(path,"w",encoding="utf-8") as f:
-            for i,seg in enumerate(self._whisper_segments,1):
-                f.write(f"{i}\n")
-                f.write(f"{_srt_timestamp(seg['start'])} --> {_srt_timestamp(seg['end'])}\n")
-                f.write(f"{seg['text'].strip()}\n\n")
-        self.trans_status.config(text=f"SRT saved: {os.path.basename(path)}",fg=LIME_DK)
-        self.app.toast(f"SRT exported: {os.path.basename(path)}")
+        try:
+            with open(path,"w",encoding="utf-8") as f:
+                for i,seg in enumerate(self._whisper_segments,1):
+                    f.write(f"{i}\n")
+                    f.write(f"{_srt_timestamp(seg['start'])} --> {_srt_timestamp(seg['end'])}\n")
+                    f.write(f"{seg['text'].strip()}\n\n")
+            self.trans_status.config(text=f"SRT saved: {os.path.basename(path)}",fg=LIME_DK)
+            self.app.toast(f"SRT exported: {os.path.basename(path)}")
+        except Exception as e:
+            self.trans_status.config(text=f"Save error: {str(e)[:60]}",fg=RED)
 
     def _save(self):
         if self._recorded_data is None:
@@ -6100,10 +6182,15 @@ class RecorderPage(ScrollFrame):
                         self.after(0,lambda:self.save_status.config(text="pydub required for non-wav",fg=RED)); return
                     if not _ensure_loudness():
                         self.after(0,lambda:self.save_status.config(text="soundfile required",fg=RED)); return
-                    tmp=os.path.join(os.environ.get("TEMP","."),"_lw_rec_tmp.wav")
-                    sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
-                    seg=AudioSegment.from_wav(tmp)
-                    seg.export(path,format=fmt)
+                    fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_rtmp_")
+                    os.close(fd)
+                    try:
+                        sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
+                        seg=AudioSegment.from_wav(tmp)
+                        seg.export(path,format=fmt)
+                    finally:
+                        try: os.unlink(tmp)
+                        except OSError: pass
                 self.after(0,lambda:(self.save_status.config(text=f"Saved: {os.path.basename(path)}",fg=LIME_DK),
                     self.app.toast(f"Recording saved: {os.path.basename(path)}")))
             except Exception as e:
@@ -6578,13 +6665,15 @@ class RemixerPage(ScrollFrame):
         threading.Thread(target=_do,daemon=True).start()
 
     def _export(self):
-        mixed=self._mix_stems()
-        if mixed is None: return
         path=filedialog.asksaveasfilename(defaultextension=".wav",filetypes=[("WAV","*.wav"),("MP3","*.mp3"),("FLAC","*.flac")])
         if not path: return
         fmt=os.path.splitext(path)[1].lstrip(".") or "wav"
-        self.status_lbl.config(text="Exporting...",fg=YELLOW); self.prog["value"]=60
+        self.status_lbl.config(text="Mixing and exporting...",fg=YELLOW); self.prog["value"]=30
         def _do():
+            mixed=self._mix_stems()
+            if mixed is None:
+                self.after(0,lambda:self.status_lbl.config(text="Mix failed",fg=RED)); return
+            self.after(0,lambda:self.prog.configure(value=60))
             mixed.export(path,format=fmt)
             self.after(0,lambda:(self.status_lbl.config(text=f"Exported: {os.path.basename(path)}",fg=LIME_DK),
                 self.prog.configure(value=100),self.app.toast(f"Remix exported: {os.path.basename(path)}")))
@@ -6754,7 +6843,7 @@ class BatchProcessorPage(ScrollFrame):
                 if self._cancel:
                     self.after(0,lambda:(self.status_lbl.config(text="Cancelled",fg=YELLOW),self.prog.configure(value=0)))
                     return
-                self.after(0,lambda ii=i:(self.status_lbl.config(text=f"Processing {ii+1}/{total}: {os.path.basename(fp)}",fg=YELLOW),
+                self.after(0,lambda ii=i,_fp=fp:(self.status_lbl.config(text=f"Processing {ii+1}/{total}: {os.path.basename(_fp)}",fg=YELLOW),
                     self.prog.configure(value=int(ii/total*100))))
                 try:
                     seg=AudioSegment.from_file(fp)
