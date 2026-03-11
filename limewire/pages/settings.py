@@ -62,7 +62,7 @@ class SettingsPage(ScrollFrame):
                         command=self._toggle_rpc).pack(side="left")
         # -- About --
         ab=GroupBox(p,"About"); ab.pack(fill="x",padx=10,pady=(0,6))
-        tk.Label(ab,text="LimeWire v2.0.2 Studio Edition",font=T.F_BOLD,bg=T.BG,fg=T.LIME_DK).pack(anchor="w")
+        tk.Label(ab,text="LimeWire v3.0.0 Studio Edition",font=T.F_BOLD,bg=T.BG,fg=T.LIME_DK).pack(anchor="w")
         tk.Label(ab,text="A modern music toolkit built with Python & tkinter.",font=T.F_SMALL,bg=T.BG,fg=T.TEXT_DIM).pack(anchor="w")
     def _browse_out(self):
         d=filedialog.askdirectory(initialdir=self.app.output_dir)

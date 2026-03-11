@@ -80,6 +80,14 @@
 - [x] Automated screenshot capture with anonymization (`--screenshots` CLI)
 - [x] All 20 screenshots updated at 960x960
 
+## v3.0.0 — Modular Architecture — Shipped!
+- [x] Full package restructuring (`limewire/` with `core/`, `services/`, `security/`, `ui/`, `pages/`)
+- [x] Security hardening module (path confinement, subprocess allowlist, JSON validation, plugin trust)
+- [x] UI uniformity pass (all 20 tabs use GroupBox pattern)
+- [x] Player layout fix (pixel-based album art, split GroupBoxes)
+- [x] Skin Customizer tool (standalone theme editor with live preview)
+- [x] Backward-compatible launcher + `python -m limewire`
+
 ## Future Ideas
 - [ ] Real-time collaborative mixing via WebSocket
 - [ ] AI-powered auto-mixing suggestions

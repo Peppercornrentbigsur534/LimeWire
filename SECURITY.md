@@ -4,9 +4,9 @@
 
 | Version | Supported |
 |---------|-----------|
-| 2.0.x   | Yes       |
-| 1.1.x   | No        |
-| 1.0.x   | No        |
+| 3.0.x   | Yes       |
+| 2.0.x   | No        |
+| 1.x     | No        |
 
 ## Reporting a Vulnerability
 
@@ -27,7 +27,7 @@ LimeWire is a local desktop application. Security concerns include:
 - Plugin system code execution
 - Theme file globals overwrite
 
-## Vulnerability Scan Report (v2.0.2)
+## Vulnerability Scan Report (v3.0.0)
 
 **Scan Date:** 2026-03-09
 **Method:** Manual code review of full codebase (~7,300 lines)
@@ -48,7 +48,7 @@ LimeWire is a local desktop application. Security concerns include:
 |---|---------|--------|-------|
 | 1.1 | Plugin system auto-executes `.py` files from `~/.limewire/plugins/` without user confirmation | **Fixed** | Plugins are now discovered but NOT loaded until user approves their SHA-256 hash. Trust auto-revoked on file change. See `limewire/security/plugin_policy.py`. |
 
-### Medium Severity (4 fixed in v2.0.2)
+### Medium Severity (4 fixed in v3.0.0)
 
 | # | Finding | Status |
 |---|---------|--------|

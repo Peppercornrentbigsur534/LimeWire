@@ -55,7 +55,7 @@ from limewire.pages import (
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("LimeWire 2.0.2 Studio Edition")
+        self.title("LimeWire 3.0.0 Studio Edition")
         self.minsize(760, 700)
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         w, h = min(960, sw - 40), min(960, sh - 80)
@@ -482,13 +482,13 @@ class App(tk.Tk):
         if HAS_DEMUCS: caps.append("Demucs Stems")
         cap_str = ", ".join(caps) if caps else "None (install optional deps)"
         hm.add_command(label="About", command=lambda: messagebox.showinfo("About",
-            f"LimeWire v2.0.2 Studio Edition\n\n"
+            f"LimeWire v3.0.0 Studio Edition\n\n"
             f"The modern music utility for everything.\n"
             f"Powered by yt-dlp + Demucs + librosa + pydub\n\n"
-            f"19 pages: Search, Batch DL, Playlist, Convert, Player,\n"
+            f"20 pages: Search, Batch DL, Playlist, Convert, Player,\n"
             f"Analyze, Stems, Effects, Discovery, Samples, Editor,\n"
             f"Recorder, Spectrogram, Pitch/Time, Remixer, Batch Process,\n"
-            f"Scheduler, History, Cover Art\n\n"
+            f"Scheduler, History, Cover Art, Settings\n\n"
             f"Active modules: {cap_str}\n\n"
             f"v2.0: Plugin system, VST3/AU hosting, MIDI mapping,\n"
             f"cloud sync, auto-update, SoundCloud/Bandcamp search,\n"
@@ -537,7 +537,7 @@ class App(tk.Tk):
             _round_rect(bar, bx, by - 11, bx + 82, by + 11, radius=11,
                         fill=_lerp_color(T.ACCENT_START, "#000000", 0.35),
                         outline=_lerp_color(T.ACCENT_START, "#FFFFFF", 0.15), tags="fg")
-            bar.create_text(bx + 41, by, text="v2.0.2 Studio", font=("Segoe UI Semibold", 8), fill="#FFFFFF", tags="fg")
+            bar.create_text(bx + 41, by, text="v3.0.0 Studio", font=("Segoe UI Semibold", 8), fill="#FFFFFF", tags="fg")
             sx = w - 90
             sy = LOGO_H // 2
             self._status_x = sx
@@ -968,7 +968,7 @@ class App(tk.Tk):
                 if resp.status_code == 200:
                     data = resp.json()
                     tag = data.get("tag_name", "")
-                    current = "v2.0.2"
+                    current = "v3.0.0"
                     if tag and tag > current:
                         self.after(0, lambda: show_toast(
                             self, f"Update available: {tag}\nVisit GitHub to download", "warn", 8000))

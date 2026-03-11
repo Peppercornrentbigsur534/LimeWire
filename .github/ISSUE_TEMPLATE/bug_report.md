@@ -22,7 +22,7 @@ If applicable, add screenshots.
 **Environment**
 - OS: [e.g. Windows 11]
 - Python version: [e.g. 3.14]
-- LimeWire version: [e.g. 2.0.2]
+- LimeWire version: [e.g. 3.0.0]
 
 **Which tab?**
 - [ ] Search & Grab

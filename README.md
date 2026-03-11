@@ -249,7 +249,7 @@ LimeWire/
   LimeWire.py                 # Thin launcher (backward compat)
   skin_customizer.py          # Visual theme editor
   limewire/
-    __init__.py               # __version__ = "2.0.2"
+    __init__.py               # __version__ = "3.0.0"
     __main__.py               # python -m limewire
     app.py                    # App(tk.Tk) main class
     core/

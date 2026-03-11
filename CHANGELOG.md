@@ -1,5 +1,32 @@
 # Changelog
 
+## v3.0.0 — Modular Architecture (2026-03-11)
+
+### Modular Package Restructuring
+- Entire codebase split from single-file monolith into `limewire/` package (~54 modules)
+- Clean separation: `core/`, `services/`, `security/`, `ui/`, `pages/`, `i18n/`, `utils/`
+- Backward-compatible `LimeWire.py` thin launcher preserved
+- `python -m limewire` support via `__main__.py`
+
+### Security Module (`limewire/security/`)
+- **safe_paths.py**: Path confinement with allowed-root enforcement, symlink traversal prevention, atomic writes, Windows reserved name blocking
+- **safe_subprocess.py**: Binary allowlist (ffmpeg/ffprobe/yt-dlp only), mandatory timeouts, output truncation, audit logging, no `shell=True`
+- **safe_json.py**: Size limits (5 MB), depth checks (max 10), key allowlisting, hex color validation for themes
+- **plugin_policy.py**: SHA-256 hash-based plugin trust, no auto-execution, auto-revoke on file change
+
+### UI Uniformity
+- All 20 pages now use consistent GroupBox card pattern
+- Player page: pixel-based album art (160x160 PhotoImage placeholder), split into 4 GroupBoxes
+- Remixer/Batch Processor: H2 titles replaced with GroupBox sections
+- Converter/Playlist: loose buttons wrapped into GroupBox containers
+
+### Skin Customizer
+- Standalone visual theme editor (`skin_customizer.py`)
+- Live preview with mock LimeWire UI rendering
+- Export to JSON for community theme sharing
+
+---
+
 ## v2.0.2 — Settings & Security Hardening (2026-03-09)
 
 ### New: Settings Tab (20th Tab)

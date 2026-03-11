@@ -17,11 +17,10 @@ class BatchProcessorPage(ScrollFrame):
     def __init__(self,parent,app):
         super().__init__(parent); self.app=app; self._files=[]; self._cancel=False
         p=self.inner
-        tk.Label(p,text="Batch Processor",font=T.F_H2,bg=T.BG,fg=T.TEXT).pack(anchor="w",padx=SP_LG,pady=(SP_LG,SP_SM))
-        tk.Label(p,text="Apply bulk operations to multiple audio files.",
-                 font=T.F_BODY,bg=T.BG,fg=T.TEXT_DIM).pack(anchor="w",padx=SP_LG)
         # File selection
-        fg=GroupBox(p,"Files"); fg.pack(fill="x",padx=SP_LG,pady=SP_MD)
+        fg=GroupBox(p,"Files"); fg.pack(fill="x",padx=SP_LG,pady=(SP_LG,SP_MD))
+        tk.Label(fg,text="Add audio files for bulk processing.",
+                 font=T.F_BODY,bg=T.BG,fg=T.TEXT_DIM).pack(anchor="w",pady=(0,SP_XS))
         bf=tk.Frame(fg,bg=T.BG); bf.pack(fill="x")
         LimeBtn(bf,"Add Files",self._add_files).pack(side="left",padx=(0,SP_SM))
         ClassicBtn(bf,"Add Folder",self._add_folder).pack(side="left",padx=(0,SP_SM))
@@ -77,12 +76,14 @@ class BatchProcessorPage(ScrollFrame):
         ClassicEntry(of,self.out_dir_var,width=50).pack(side="left",fill="x",expand=True,padx=(0,SP_SM))
         ClassicBtn(of,"Browse",self._browse_out).pack(side="left")
         # Process
-        pf=tk.Frame(p,bg=T.BG); pf.pack(fill="x",padx=SP_LG,pady=SP_MD)
+        # ── Process ──────────────────────────────────────────────────────────
+        ag=GroupBox(p,"Process"); ag.pack(fill="x",padx=SP_LG,pady=SP_SM)
+        pf=tk.Frame(ag,bg=T.BG); pf.pack(fill="x")
         LimeBtn(pf,"Process All",self._process).pack(side="left",padx=(0,SP_SM))
         OrangeBtn(pf,"Cancel",self._cancel_proc).pack(side="left")
-        self.status_lbl=tk.Label(p,text="Add files and select operations",font=T.F_BODY,bg=T.BG,fg=T.TEXT_DIM)
-        self.status_lbl.pack(anchor="w",padx=SP_LG,pady=SP_XS)
-        self.prog=ClassicProgress(p); self.prog.pack(fill="x",padx=SP_LG,pady=(0,SP_SM))
+        self.status_lbl=tk.Label(ag,text="Add files and select operations",font=T.F_BODY,bg=T.BG,fg=T.TEXT_DIM)
+        self.status_lbl.pack(anchor="w",pady=(SP_XS,0))
+        self.prog=ClassicProgress(ag); self.prog.pack(fill="x",pady=(SP_XS,0))
 
     def _add_files(self):
         fs=filedialog.askopenfilenames(filetypes=[("Audio","*.mp3 *.wav *.flac *.ogg *.m4a *.aac")])

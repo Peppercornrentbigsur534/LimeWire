@@ -36,9 +36,12 @@ class PlayerPage(ScrollFrame):
     def _build(self, p):
         ng = GroupBox(p, "Now Playing"); ng.pack(fill="x", padx=10, pady=(10, 6))
         nr = tk.Frame(ng, bg=T.BG); nr.pack(fill="x")
-        self.art = tk.Label(nr, bg=T.CARD_BG, width=200, height=200, text="\u266A",
-                            font=("Segoe UI", 32), fg=T.TEXT_DIM,
-                            relief="groove", bd=1, cursor="hand2")
+        self._blank_art = tk.PhotoImage(width=160, height=160)
+        self.art = tk.Label(nr, bg=T.SURFACE_2, image=self._blank_art,
+                            text="\u266A", compound="center",
+                            font=("Segoe UI", 28), fg=T.TEXT_DIM,
+                            relief="flat", bd=0, cursor="hand2",
+                            highlightthickness=1, highlightbackground=T.CARD_BORDER)
         self.art.pack(side="left", padx=(0, 12))
         self.art.bind("<Button-1>", self._show_fullsize_art)
         self._art_data = None
@@ -76,14 +79,18 @@ class PlayerPage(ScrollFrame):
         self.play_b = LimeBtn(cr, "Play", self._toggle, width=8)
         self.play_b.pack(side="left", padx=4)
         ClassicBtn(cr, ">|", self._next, width=4).pack(side="left", padx=2)
+        OrangeBtn(cr, "Analyze", self._analyze_cur).pack(side="left", padx=(12, 4))
+        OrangeBtn(cr, "Split Stems", self._stems_cur).pack(side="left")
 
-        # Quick analyze/stems buttons
-        qa = tk.Frame(ng, bg=T.BG); qa.pack(pady=(4, 0))
-        OrangeBtn(qa, "Analyze", self._analyze_cur).pack(side="left", padx=(0, 6))
-        OrangeBtn(qa, "Split Stems", self._stems_cur).pack(side="left", padx=(0, 6))
+        # Up Next indicator
+        self._upnext_lbl = tk.Label(ng, text="", font=T.F_SMALL, bg=T.BG,
+                                    fg=T.TEXT_DIM, anchor="w")
+        self._upnext_lbl.pack(fill="x", pady=(SP_XS, 0))
 
-        # Speed + A-B loop
-        spr = tk.Frame(ng, bg=T.BG); spr.pack(pady=(4, 0))
+        # ── Playback Options ────────────────────────────────────────────────
+        og = GroupBox(p, "Playback Options"); og.pack(fill="x", padx=10, pady=(0, 6))
+
+        spr = tk.Frame(og, bg=T.BG); spr.pack(fill="x")
         tk.Label(spr, text="Speed:", font=T.F_BOLD, bg=T.BG, fg=T.TEXT).pack(
             side="left", padx=(0, 4))
         self.speed_var = tk.StringVar(value="1.0x")
@@ -102,7 +109,7 @@ class PlayerPage(ScrollFrame):
         self.ab_lbl.pack(side="left", padx=(4, 0))
         ClassicBtn(spr, "Clear", self._clear_ab, width=5).pack(side="left", padx=(4, 0))
 
-        vr = tk.Frame(ng, bg=T.BG); vr.pack(pady=(4, 0))
+        vr = tk.Frame(og, bg=T.BG); vr.pack(fill="x", pady=(4, 0))
         tk.Label(vr, text="Vol:", font=T.F_BOLD, bg=T.BG, fg=T.TEXT).pack(
             side="left", padx=(0, 6))
         self.vol = tk.DoubleVar(value=80)
@@ -117,11 +124,6 @@ class PlayerPage(ScrollFrame):
                    highlightbackground=T.INPUT_BORDER).pack(side="left")
         tk.Label(vr, text="ms", font=T.F_SMALL, bg=T.BG, fg=T.TEXT_DIM).pack(
             side="left", padx=SP_XS)
-
-        # Up Next indicator
-        self._upnext_lbl = tk.Label(ng, text="", font=T.F_SMALL, bg=T.BG,
-                                    fg=T.TEXT_DIM, anchor="w")
-        self._upnext_lbl.pack(fill="x", pady=(SP_XS, 0))
 
         # EQ Spectrum Visualizer
         eqg = GroupBox(p, "EQ Spectrum"); eqg.pack(fill="x", padx=10, pady=(0, 6))
@@ -190,7 +192,7 @@ class PlayerPage(ScrollFrame):
         self.plb.see(idx)
         name = os.path.splitext(os.path.basename(path))[0]
         self.np_t.config(text=name); self.np_a.config(text="")
-        self.art.config(image="", text="\u266A", width=200, height=200)
+        self.art.config(image=self._blank_art, text="\u266A")
         self._art_data = None
         try:
             mf = mutagen.File(path)
@@ -217,7 +219,7 @@ class PlayerPage(ScrollFrame):
                 with Image.open(BytesIO(art_data)) as raw:
                     img = raw.convert("RGB"); img.thumbnail((200, 200), Image.LANCZOS)
                 ph = ImageTk.PhotoImage(img)
-                self.art.config(image=ph, text="", width=200, height=200)
+                self.art.config(image=ph, text="")
                 self.art._img = ph
         except Exception:
             self._dur = 0

@@ -48,8 +48,8 @@ class ConverterPage(ScrollFrame):
         self.out_f = tk.StringVar(value=self.app.output_dir)
         ClassicEntry(fc, self.out_f, width=30).pack(side="left", fill="x", expand=True, ipady=2)
 
-        LimeBtn(p, "Convert All", self._conv, width=16).pack(padx=10, pady=6, anchor="w")
-        pg = GroupBox(p, "Progress"); pg.pack(fill="x", padx=10, pady=(0, 10))
+        pg = GroupBox(p, "Process"); pg.pack(fill="x", padx=10, pady=(0, 10))
+        LimeBtn(pg, "Convert All", self._conv, width=16).pack(anchor="w", pady=(0, 6))
         self.cb = ClassicProgress(pg); self.cb.pack(fill="x", pady=(0, 2))
         self.cl = tk.Label(pg, text="--", font=T.F_SMALL, bg=T.BG, fg=T.TEXT_DIM)
         self.cl.pack(anchor="w")

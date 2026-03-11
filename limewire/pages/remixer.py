@@ -20,16 +20,17 @@ class RemixerPage(ScrollFrame):
     def __init__(self,parent,app):
         super().__init__(parent); self.app=app; self._stems={}; self._stem_data={}
         p=self.inner
-        tk.Label(p,text="Stem Remixer",font=T.F_H2,bg=T.BG,fg=T.TEXT).pack(anchor="w",padx=SP_LG,pady=(SP_LG,SP_SM))
-        tk.Label(p,text="Mix Demucs stems: adjust volume, pan, mute/solo each stem, then export a remix.",
-                 font=T.F_BODY,bg=T.BG,fg=T.TEXT_DIM).pack(anchor="w",padx=SP_LG)
-        # Browse
-        bf=tk.Frame(p,bg=T.BG); bf.pack(fill="x",padx=SP_LG,pady=SP_MD)
+        # ── Stems Source ─────────────────────────────────────────────────────
+        sg=GroupBox(p,"Stems Source"); sg.pack(fill="x",padx=SP_LG,pady=(SP_LG,SP_SM))
+        tk.Label(sg,text="Load stems from a Demucs output folder to remix.",
+                 font=T.F_BODY,bg=T.BG,fg=T.TEXT_DIM).pack(anchor="w",pady=(0,SP_XS))
+        bf=tk.Frame(sg,bg=T.BG); bf.pack(fill="x")
         self.dir_var=tk.StringVar()
         ClassicEntry(bf,self.dir_var,width=50).pack(side="left",fill="x",expand=True,padx=(0,SP_SM))
         LimeBtn(bf,"Browse Stems",self._browse).pack(side="left")
-        # Channel strips container
-        self._strip_frame=tk.Frame(p,bg=T.BG); self._strip_frame.pack(fill="x",padx=SP_LG,pady=SP_SM)
+        # ── Channel Strips ───────────────────────────────────────────────────
+        csg=GroupBox(p,"Channel Strips"); csg.pack(fill="x",padx=SP_LG,pady=SP_SM)
+        self._strip_frame=tk.Frame(csg,bg=T.BG); self._strip_frame.pack(fill="x")
         # Master controls
         mg=GroupBox(p,"Master"); mg.pack(fill="x",padx=SP_LG,pady=SP_SM)
         mf=tk.Frame(mg,bg=T.BG); mf.pack(fill="x")
@@ -40,14 +41,16 @@ class RemixerPage(ScrollFrame):
         self.master_lbl.pack(side="left")
         self.master_vol.trace_add("write",lambda *a:self.master_lbl.config(text=f"{self.master_vol.get():.0f}%"))
         # Buttons
-        cf=tk.Frame(p,bg=T.BG); cf.pack(fill="x",padx=SP_LG,pady=SP_SM)
+        # ── Actions ──────────────────────────────────────────────────────────
+        ag=GroupBox(p,"Actions"); ag.pack(fill="x",padx=SP_LG,pady=SP_SM)
+        cf=tk.Frame(ag,bg=T.BG); cf.pack(fill="x")
         LimeBtn(cf,"Preview Mix",self._preview).pack(side="left",padx=(0,SP_SM))
         OrangeBtn(cf,"Export Remix",self._export).pack(side="left",padx=(0,SP_SM))
         ClassicBtn(cf,"MIDI Learn",self._midi_learn).pack(side="left",padx=(0,SP_SM))
         self._midi_active=False; self._midi_map={}
-        self.status_lbl=tk.Label(p,text="Load stems from a Demucs output folder",font=T.F_BODY,bg=T.BG,fg=T.TEXT_DIM)
-        self.status_lbl.pack(anchor="w",padx=SP_LG,pady=SP_SM)
-        self.prog=ClassicProgress(p); self.prog.pack(fill="x",padx=SP_LG,pady=(0,SP_SM))
+        self.status_lbl=tk.Label(ag,text="",font=T.F_BODY,bg=T.BG,fg=T.TEXT_DIM)
+        self.status_lbl.pack(anchor="w",pady=(SP_XS,0))
+        self.prog=ClassicProgress(ag); self.prog.pack(fill="x",pady=(SP_XS,0))
 
     def _browse(self):
         d=filedialog.askdirectory(title="Select Demucs Stems Folder")

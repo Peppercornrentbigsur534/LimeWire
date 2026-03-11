@@ -17,7 +17,7 @@ Thanks for your interest in contributing! LimeWire is a modular Python applicati
 LimeWire/
   LimeWire.py                     # Thin launcher (backward compat)
   limewire/
-    __init__.py                   # __version__ = "2.0.2"
+    __init__.py                   # __version__ = "3.0.0"
     __main__.py                   # python -m limewire support
     app.py                        # App(tk.Tk) main class
     core/
