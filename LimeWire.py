@@ -714,37 +714,59 @@ class PluginBase:
         """Process audio data (numpy array) at sample rate sr. Return processed array."""
         return audio_data
 
+def _sha256_file(path):
+    """Compute SHA-256 hex digest of a file."""
+    import hashlib
+    h=hashlib.sha256()
+    with open(path,"rb") as f:
+        for chunk in iter(lambda:f.read(1024*1024),b""): h.update(chunk)
+    return h.hexdigest()
+
 class PluginManager:
-    """Discovers, loads, and manages audio processor plugins."""
+    """Discovers, loads, and manages audio processor plugins.
+    Security: plugins are only loaded if their SHA-256 hash has been
+    explicitly approved by the user. No auto-execution on discovery."""
     def __init__(self):
         self._plugins={}  # name → plugin_instance
+        self._discovered=[]  # list of (path, filename, sha256, trusted)
         self._errors=[]
-    def discover(self):
-        """Scan plugins directory and load all .py plugin files."""
-        self._plugins={}; self._errors=[]
+    def discover(self,trusted_hashes=None):
+        """Scan plugins directory — only load plugins with approved hashes.
+        If trusted_hashes is None, discovery only (no loading)."""
+        self._plugins={}; self._errors=[]; self._discovered=[]
         os.makedirs(PLUGINS_DIR,exist_ok=True)
         plugin_files=[fn for fn in os.listdir(PLUGINS_DIR)
                       if fn.endswith(".py") and not fn.startswith("_")]
         if not plugin_files: return
-        _log.info(f"Loading {len(plugin_files)} plugin(s) from {PLUGINS_DIR}")
         for fn in plugin_files:
             path=os.path.join(PLUGINS_DIR,fn)
+            if not os.path.isfile(path): continue
+            digest=_sha256_file(path)
+            is_trusted=trusted_hashes is not None and digest in trusted_hashes
+            self._discovered.append({"path":path,"filename":fn,"sha256":digest,"trusted":is_trusted})
+        if trusted_hashes is None: return  # discovery only
+        for item in self._discovered:
+            if not item["trusted"]:
+                _log.info(f"[PLUGIN] Skipping untrusted: {item['filename']} (hash={item['sha256'][:16]}...)")
+                continue
             try:
                 import importlib.util
-                spec=importlib.util.spec_from_file_location(fn[:-3],path)
+                spec=importlib.util.spec_from_file_location(item["filename"][:-3],item["path"])
                 mod=importlib.util.module_from_spec(spec)
-                _log.info(f"[PLUGIN] Loading: {path} (review before use)")
+                _log.info(f"[PLUGIN] Loading trusted: {item['path']}")
                 spec.loader.exec_module(mod)
-                # Find all PluginBase subclasses in the module
                 for attr_name in dir(mod):
                     attr=getattr(mod,attr_name)
                     if isinstance(attr,type) and issubclass(attr,PluginBase) and attr is not PluginBase:
                         inst=attr()
                         self._plugins[inst.name]=inst
-                        _log.info(f"Loaded plugin: {inst.name} from {fn}")
+                        _log.info(f"Loaded plugin: {inst.name} from {item['filename']}")
             except Exception as e:
-                self._errors.append((fn,str(e)))
-                _log.warning(f"Failed to load plugin {fn}: {e}")
+                self._errors.append((item["filename"],str(e)))
+                _log.warning(f"Failed to load plugin {item['filename']}: {e}")
+    def get_discovered(self):
+        """Return list of discovered plugins (not necessarily loaded)."""
+        return list(self._discovered)
     def list_plugins(self):
         return list(self._plugins.values())
     def get(self,name):
@@ -757,7 +779,8 @@ class PluginManager:
         return list(self._errors)
 
 _plugin_manager=PluginManager()
-try: _plugin_manager.discover()
+# Discovery only at startup — no auto-execution. Plugins loaded later via trusted hashes.
+try: _plugin_manager.discover(trusted_hashes=None)
 except Exception: pass
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -4904,8 +4927,9 @@ class EffectsPage(ScrollFrame):
         except Exception as e:
             show_toast(self.app,f"VST load failed: {str(e)[:60]}","error")
     def _reload_plugins(self):
-        """Reload custom plugins from plugins directory."""
-        _plugin_manager.discover()
+        """Reload custom plugins from plugins directory (trusted only)."""
+        trusted=set(self.app.settings.get("trusted_plugin_hashes",[]))
+        _plugin_manager.discover(trusted_hashes=trusted)
         # Rebuild effects list
         base_fx=["Compressor","Reverb","Delay","Distortion","Gain","NoiseGate",
                  "HighpassFilter","LowpassFilter","HighShelfFilter","LowShelfFilter","Chorus","Phaser"]

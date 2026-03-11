@@ -37,16 +37,16 @@ LimeWire is a local desktop application. Security concerns include:
 | Severity | Found | Fixed | Remaining |
 |----------|-------|-------|-----------|
 | Critical | 0     | —     | 0         |
-| High     | 1     | 0     | 1         |
+| High     | 1     | 1     | 0         |
 | Medium   | 4     | 4     | 0         |
 | Low      | 12    | 0     | 12        |
 | Info     | 2     | —     | 2         |
 
-### High Severity (1 remaining)
+### High Severity (0 remaining)
 
 | # | Finding | Status | Notes |
 |---|---------|--------|-------|
-| 1.1 | Plugin system auto-executes `.py` files from `~/.limewire/plugins/` without user confirmation | Acknowledged | Inherent design — plugins directory is user-controlled. A log warning is emitted per plugin. Future: add opt-in confirmation dialog. |
+| 1.1 | Plugin system auto-executes `.py` files from `~/.limewire/plugins/` without user confirmation | **Fixed** | Plugins are now discovered but NOT loaded until user approves their SHA-256 hash. Trust auto-revoked on file change. See `limewire/security/plugin_policy.py`. |
 
 ### Medium Severity (4 fixed in v2.0.2)
 
@@ -89,12 +89,15 @@ LimeWire is a local desktop application. Security concerns include:
 - `apply_theme()` restricted to known color key allowlist (prevents globals overwrite)
 - VST plugins from presets require `user_loaded` flag (only set via interactive file dialog)
 - `_ALLOWED_EFFECTS` frozenset blocks unknown effect names from `getattr(pedalboard, ...)`
-- Plugin loading logs a warning per file loaded
+- **Plugin trust system** (`limewire/security/plugin_policy.py`): SHA-256 hash-based approval, no auto-execution, auto-revoke on file change
+- **Subprocess allowlist** (`limewire/security/safe_subprocess.py`): only ffmpeg/ffprobe/yt-dlp permitted, no `shell=True`, mandatory timeouts, audit logging
+- **JSON validation** (`limewire/security/safe_json.py`): size limits, depth checks, key allowlists, hex color validation for themes
 
 ### File System
 - Atomic JSON writes via `tmp + os.replace()` prevents config corruption
 - `tempfile.mkstemp()` used for all temporary files (6 locations) with cleanup
 - Path traversal check on batch rename: validates output stays in parent directory
+- **Safe paths** (`limewire/security/safe_paths.py`): centralized path resolution, symlink traversal prevention, allowed-root enforcement for writes
 
 ### Network
 - SSL certificate verification enabled (requests library default)
