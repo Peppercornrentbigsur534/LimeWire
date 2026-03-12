@@ -437,9 +437,10 @@ class PlayerPage(ScrollFrame):
     def _gen_freq_profile(self, path):
         """Compute frequency profile in background thread."""
         times, bands = compute_frequency_profile(path)
-        self._freq_times = times
-        self._freq_bands = bands
-        self._freq_loading = False
+        with self._lock:
+            self._freq_times = times
+            self._freq_bands = bands
+            self._freq_loading = False
 
     def _draw_wave(self, bars, cursor_ratio=None):
         if not bars:

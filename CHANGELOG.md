@@ -1,5 +1,40 @@
 # Changelog
 
+## v3.3.0 — Security & Stability (2026-03-11)
+
+### Security Hardening (All Connectors)
+- **OAuth PKCE** (Proof Key for Code Exchange) on Spotify, YouTube, TIDAL
+- **CSRF Protection** via cryptographic state parameter on all OAuth flows
+- **DPAPI Token Encryption** at rest on Windows (base64 fallback on other OS)
+- **Input Validation** — regex ID validation on all service-specific IDs before API interpolation
+- **SSRF Protection** — domain-allowlist on pagination URLs (Spotify) and yt-dlp URLs (YouTube, SoundCloud)
+- **Error Sanitization** — query params and tokens stripped from exception messages
+- **Limit Caps** — pagination bounded to prevent resource exhaustion (10K tracks max)
+- **Schema Migration** — `client_secret` column removed from SQLite storage; secrets loaded only from settings at runtime
+
+### Security Indicators (Settings > Accounts)
+- Per-service "✓ Secure" badge (green) when linked
+- New "Security" GroupBox showing 4 active protections: PKCE, CSRF, Encrypted Storage, Input Validation
+
+### Bug Fixes
+- **player.py**: Fixed race condition — frequency profile now written under lock from background thread
+- **effects.py / recorder.py / remixer.py**: Fixed temp file deleted while pyglet still playing; temp files now cleaned on next preview
+- **stems.py**: `_running` flag now reset in `finally` block — prevents batch separation from becoming permanently locked on exception
+- **editor.py**: "End" time label now shows actual selection end instead of total file duration
+- **analyze.py**: Image card export now uses correct dictionary keys — results no longer display as "--"
+- **batch_processor.py**: "Normalize LUFS" label corrected to "Normalize Loudness (dBFS)" to match actual pydub algorithm
+- **search.py**: Subtitle language now reads from user settings instead of hardcoded "en"
+- **effects.py**: Undo stack limit now respects configurable `undo_max` setting instead of hardcoded 30
+
+### Playlist Transfer & Sync (GUI)
+- Full transfer dialog accessible via "Transfer..." button on Playlist page
+- Supports: single playlist, sync playlist, all playlists, liked songs, followed artists, saved albums
+- Cross-service: Spotify ↔ YouTube ↔ TIDAL ↔ SoundCloud ↔ Deezer
+- Detailed match report with confidence scores and match methods
+- CSV export of track lists
+
+---
+
 ## v3.0.0 — Modular Architecture (2026-03-11)
 
 ### Modular Package Restructuring

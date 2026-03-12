@@ -135,13 +135,13 @@ def run_demucs(filepath, output_dir, model="htdemucs", two_stems=None):
         return cmd
 
     if not HAS_DEMUCS:
+        # Try CLI fallback before giving up
         try:
             subprocess.run(_build_cmd(), check=True,
                            capture_output=True, timeout=600)
             return True
         except Exception as e:
-            return (f"Demucs not installed. Run: pip install demucs\n"
-                    f"{_demucs_cli_error(e)}")
+            return f"Demucs not installed. Run: pip install demucs\n{_demucs_cli_error(e)}"
     # Try Python API first, catch SystemExit too
     try:
         import demucs.separate

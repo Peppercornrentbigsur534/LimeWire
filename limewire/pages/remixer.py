@@ -151,15 +151,17 @@ class RemixerPage(ScrollFrame):
         def _do():
             mixed=self._mix_stems()
             if mixed is None: self.after(0,lambda:self.prog.configure(value=0)); return
+            # Clean up previous preview temp file
+            old_tmp = getattr(self, "_preview_tmp", None)
+            if old_tmp:
+                try: os.unlink(old_tmp)
+                except OSError: pass
             fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_remix_")
             os.close(fd)
-            try:
-                mixed.export(tmp,format="wav")
-                _audio.load(tmp); _audio.play()
-                self.after(0,lambda:(self.status_lbl.config(text="Playing preview...",fg=T.LIME_DK),self.prog.configure(value=100)))
-            finally:
-                try: os.unlink(tmp)
-                except OSError: pass
+            mixed.export(tmp,format="wav")
+            _audio.load(tmp); _audio.play()
+            self._preview_tmp = tmp  # deleted on next preview
+            self.after(0,lambda:(self.status_lbl.config(text="Playing preview...",fg=T.LIME_DK),self.prog.configure(value=100)))
         threading.Thread(target=_do,daemon=True).start()
 
     def _export(self):

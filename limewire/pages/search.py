@@ -353,7 +353,8 @@ class SearchPage(ScrollFrame):
         if self.subs_var.get():
             opts["writesubtitles"] = True
             opts["writeautomaticsub"] = True
-            opts["subtitleslangs"] = ["en"]
+            sub_lang = self.app.settings.get("search", {}).get("subtitle_lang", "en") if isinstance(self.app.settings.get("search"), dict) else "en"
+            opts["subtitleslangs"] = [sub_lang]
         try:
             with yt_dlp.YoutubeDL({**YDL_BASE, **opts}) as ydl:
                 info = ydl.extract_info(url, download=True)

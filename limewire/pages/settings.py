@@ -420,7 +420,7 @@ class SettingsPage(ScrollFrame):
         nb.add(f, text="  About  ")
         g = GroupBox(f, "LimeWire Studio Edition")
         g.pack(fill="x", padx=10, pady=(10, 6))
-        tk.Label(g, text="LimeWire v3.0.0 Studio Edition", font=T.F_BOLD,
+        tk.Label(g, text="LimeWire v3.3.0 Studio Edition", font=T.F_BOLD,
                  bg=T.BG, fg=T.LIME_DK).pack(anchor="w")
         tk.Label(g, text="A modern music toolkit with 24 pages — download, play, "
                  "analyze, remix, and more.", font=T.F_BODY,

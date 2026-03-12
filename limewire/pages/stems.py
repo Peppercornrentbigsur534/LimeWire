@@ -191,24 +191,26 @@ class StemsPage(ScrollFrame):
         def _do_batch():
             ok = 0
             fail = 0
-            for i, path in enumerate(files):
-                name = os.path.basename(path)
-                self.after(0, lambda i=i, n=name: self.stem_status.config(
-                    text=f"Batch [{i + 1}/{total}]: {n}...", fg=T.YELLOW))
-                try:
-                    result = run_demucs(path, out, model, two_stems)
-                    if result is True:
-                        ok += 1
-                    else:
+            try:
+                for i, path in enumerate(files):
+                    name = os.path.basename(path)
+                    self.after(0, lambda i=i, n=name: self.stem_status.config(
+                        text=f"Batch [{i + 1}/{total}]: {n}...", fg=T.YELLOW))
+                    try:
+                        result = run_demucs(path, out, model, two_stems)
+                        if result is True:
+                            ok += 1
+                        else:
+                            fail += 1
+                    except Exception:
                         fail += 1
-                except Exception:
-                    fail += 1
-                self.after(0, lambda p=int(((i + 1) / total) * 100): self.stem_prog.configure(value=p))
-            msg = f"Batch done \u2014 {ok} succeeded" + (f", {fail} failed" if fail else "")
-            self.after(0, lambda: (
-                self.stem_status.config(text=msg, fg=T.LIME_DK if fail == 0 else T.YELLOW),
-                self.app.set_status(msg)))
-            self._running = False
+                    self.after(0, lambda p=int(((i + 1) / total) * 100): self.stem_prog.configure(value=p))
+                msg = f"Batch done \u2014 {ok} succeeded" + (f", {fail} failed" if fail else "")
+                self.after(0, lambda: (
+                    self.stem_status.config(text=msg, fg=T.LIME_DK if fail == 0 else T.YELLOW),
+                    self.app.set_status(msg)))
+            finally:
+                self._running = False
 
         threading.Thread(target=_do_batch, daemon=True).start()
 

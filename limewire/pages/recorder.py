@@ -225,14 +225,16 @@ class RecorderPage(ScrollFrame):
             self.play_lbl.config(text="Nothing recorded yet",fg=T.YELLOW); return
         if not _ensure_loudness():
             self.play_lbl.config(text="soundfile needed for playback",fg=T.RED); return
+        # Clean up previous playback temp file
+        old_tmp = getattr(self, "_play_tmp", None)
+        if old_tmp:
+            try: os.unlink(old_tmp)
+            except OSError: pass
         fd,tmp=tempfile.mkstemp(suffix=".wav",prefix="_lw_rec_")
         os.close(fd)
-        try:
-            sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
-            _audio.load(tmp); _audio.play()
-        finally:
-            try: os.unlink(tmp)
-            except OSError: pass
+        sf.write(tmp,self._recorded_data,RECORDER_SAMPLE_RATE)
+        _audio.load(tmp); _audio.play()
+        self._play_tmp = tmp  # deleted on next playback
         self.play_lbl.config(text="Playing...",fg=T.LIME_DK)
 
     def _transcribe(self):

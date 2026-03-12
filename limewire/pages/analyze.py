@@ -594,12 +594,12 @@ class AnalyzePage(ScrollFrame):
             draw.text((20, 55), "LimeWire Analysis", fill="#80ffaa", font=font_sm)
             # Results
             y = 100
-            items = [("BPM", data.get("bpm", "--")), ("Key", data.get("key", "--")),
-                     ("Camelot", data.get("camelot", "--")),
-                     ("Loudness", f"{data.get('lufs', '--')} LUFS"),
-                     ("True Peak", f"{data.get('true_peak', '--')} dBFS"),
-                     ("Duration", data.get("duration", "--")),
-                     ("Sample Rate", data.get("sample_rate", "--"))]
+            items = [("BPM", data.get("BPM", "--")), ("Key", data.get("Key", "--")),
+                     ("Camelot", data.get("Camelot", "--")),
+                     ("Loudness", f"{data.get('Loudness (LUFS)', '--')} LUFS"),
+                     ("True Peak", f"{data.get('True Peak', '--')} dBFS"),
+                     ("Duration", data.get("Duration", "--")),
+                     ("Sample Rate", data.get("Sample Rate", "--"))]
             for label, val in items:
                 draw.text((30, y), f"{label}:", fill="#aaaaaa", font=font_md)
                 draw.text((200, y), str(val), fill="#FFFFFF", font=font_md)

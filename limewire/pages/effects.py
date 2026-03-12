@@ -100,7 +100,8 @@ class EffectsPage(ScrollFrame):
     # ── Undo / Redo ───────────────────────────────────────────────────────────
     def _push_undo(self):
         self._undo_stack.append(copy.deepcopy(self._chain))
-        if len(self._undo_stack) > 30:
+        undo_max = self.app.settings.get("effects", {}).get("undo_max", 30) if isinstance(self.app.settings.get("effects"), dict) else 30
+        if len(self._undo_stack) > undo_max:
             self._undo_stack.pop(0)
         self._redo_stack.clear()
 
@@ -385,18 +386,18 @@ class EffectsPage(ScrollFrame):
                     sr = f.samplerate
                     chunk = f.read(min(sr * 5, f.frames))
                 processed = board(chunk, sample_rate=sr)
+                # Clean up previous preview temp file if any
+                old_tmp = getattr(self, "_preview_tmp", None)
+                if old_tmp:
+                    try: os.unlink(old_tmp)
+                    except OSError: pass
                 fd, preview_path = tempfile.mkstemp(suffix=".wav", prefix="_lw_fx_")
                 os.close(fd)
-                try:
-                    with pedalboard.io.AudioFile(preview_path, "w", sr,
-                                                 processed.shape[0]) as f:
-                        f.write(processed)
-                    _audio.load(preview_path); _audio.play()
-                finally:
-                    try:
-                        os.unlink(preview_path)
-                    except OSError:
-                        pass
+                with pedalboard.io.AudioFile(preview_path, "w", sr,
+                                             processed.shape[0]) as f:
+                    f.write(processed)
+                _audio.load(preview_path); _audio.play()
+                self._preview_tmp = preview_path  # deleted on next preview
                 self.after(0, lambda: self.fx_status.config(
                     text="Playing 5s preview...", fg=T.LIME_DK))
             except Exception as e:

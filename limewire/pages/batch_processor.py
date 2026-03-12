@@ -46,13 +46,13 @@ class BatchProcessorPage(ScrollFrame):
         self._op_strip_meta=tk.BooleanVar(value=False)
         # Normalize row
         nf=tk.Frame(og,bg=T.BG); nf.pack(fill="x",pady=2)
-        ClassicCheck(nf,"Normalize LUFS",self._op_normalize).pack(side="left")
+        ClassicCheck(nf,"Normalize Loudness (dBFS)",self._op_normalize).pack(side="left")
         tk.Label(nf,text="Target:",font=T.F_SMALL,bg=T.BG,fg=T.TEXT_DIM).pack(side="left",padx=(SP_LG,SP_XS))
         self.target_lufs=tk.DoubleVar(value=-14.0)
         tk.Spinbox(nf,from_=-60,to=0,increment=0.5,textvariable=self.target_lufs,width=6,
                    font=T.F_BODY,bg=T.INPUT_BG,fg=T.TEXT,relief="flat",bd=0,highlightthickness=1,
                    highlightbackground=T.INPUT_BORDER).pack(side="left")
-        tk.Label(nf,text="LUFS",font=T.F_SMALL,bg=T.BG,fg=T.TEXT_DIM).pack(side="left",padx=SP_XS)
+        tk.Label(nf,text="dBFS",font=T.F_SMALL,bg=T.BG,fg=T.TEXT_DIM).pack(side="left",padx=SP_XS)
         # Convert row
         cf=tk.Frame(og,bg=T.BG); cf.pack(fill="x",pady=2)
         ClassicCheck(cf,"Convert Format",self._op_convert).pack(side="left")

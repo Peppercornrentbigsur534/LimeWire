@@ -311,7 +311,7 @@ class EditorPage(ScrollFrame):
         if not self._segment: return
         dur_ms=len(self._segment)
         self.time_start_lbl.config(text=f"Start: {self._sel_start_ms/1000:.3f}s")
-        self.time_end_lbl.config(text=f"End: {dur_ms/1000:.3f}s")
+        self.time_end_lbl.config(text=f"End: {self._sel_end_ms/1000:.3f}s")
         sel_dur=(self._sel_end_ms-self._sel_start_ms)/1000
         self.sel_lbl.config(text=f"Selection: {self._sel_start_ms}ms - {self._sel_end_ms}ms ({sel_dur:.3f}s)")
         self.sel_start_var.set(str(self._sel_start_ms))
