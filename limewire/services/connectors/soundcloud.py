@@ -151,13 +151,25 @@ class SoundCloudConnector(ConnectorBase):
             entries = (info.get("entries") or [])[:MAX_TRACKS]
             tracks = []
             for e in entries:
+                track_url = e.get("url") or ""
+                title = e.get("title") or ""
+                # extract_flat doesn't return titles for SoundCloud;
+                # derive a readable name from the URL slug as fallback
+                if not title and track_url:
+                    slug = track_url.rstrip("/").rsplit("/", 1)[-1]
+                    title = slug.replace("-", " ").replace("_", " ").strip()
+                artist = e.get("uploader") or ""
+                if not artist and track_url:
+                    parts = track_url.replace("https://soundcloud.com/", "").split("/")
+                    if len(parts) >= 1:
+                        artist = parts[0].replace("-", " ").replace("_", " ").strip()
                 tracks.append(TrackResult(
                     service="soundcloud",
                     track_id=str(e.get("id", "")),
-                    title=e.get("title", ""),
-                    artist=e.get("uploader") or "",
+                    title=title,
+                    artist=artist,
                     duration_ms=(e.get("duration") or 0) * 1000,
-                    url=e.get("url") or "",
+                    url=track_url,
                 ))
             return PlaylistResult(
                 service="soundcloud",
