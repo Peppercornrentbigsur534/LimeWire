@@ -176,7 +176,7 @@ class PlaylistPage(ScrollFrame):
             ok = 0
             fail = 0
             for i, url in enumerate(urls, 1):
-                opts = {"quiet": True, "no_warnings": True,
+                opts = {"quiet": True, "no_warnings": True, "noplaylist": True,
                         "outtmpl": os.path.join(out, "%(title)s.%(ext)s"), **extra}
                 if mode == "audio":
                     opts.update({"format": "bestaudio/best",
@@ -220,11 +220,14 @@ class PlaylistPage(ScrollFrame):
                 tracks = result.get("tracks", [])
                 self._tracks = []
                 for t in tracks:
+                    track_url = t.get("url", "")
+                    title = f"{t.get('artist', '')} - {t.get('title', '')}" if t.get("artist") else t.get("title", "")
                     self._tracks.append({
-                        "title": f"{t.get('artist', '')} - {t.get('title', '')}" if t.get("artist") else t.get("title", ""),
-                        "url": "",  # will search YouTube on download
+                        "title": title,
+                        "url": track_url,
                         "dur": (t.get("duration_ms", 0) or 0) // 1000,
-                        "_yt_query": f"ytsearch1:{t.get('artist', '')} - {t.get('title', '')}",
+                        # Only fall back to YouTube search if no direct URL
+                        "_yt_query": f"ytsearch1:{title}" if not track_url else "",
                     })
                 self.after(0, self._render)
                 name = result.get("name", "playlist")
